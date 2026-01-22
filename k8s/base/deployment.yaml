@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: foreend-platform
+  labels:
+    app: foreend-platform
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: foreend-platform
+  template:
+    metadata:
+      labels:
+        app: foreend-platform
+    spec:
+      imagePullSecrets:
+        - name: dockerhub-credentials
+      containers:
+        - name: foreend-platform
+          image: lzjxccode/foreend-platform:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 80
+              protocol: TCP
+          env:
+            - name: LLM_GATEWAY_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: foreend-platform-secrets
+                  key: LLM_GATEWAY_API_KEY
+                  optional: true
+            - name: PERSONAL_INFO_SERVICE_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: foreend-platform-secrets
+                  key: PERSONAL_INFO_SERVICE_TOKEN
+                  optional: true
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "50m"
+            limits:
+              memory: "128Mi"
+              cpu: "200m"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 80
+            initialDelaySeconds: 5
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 80
+            initialDelaySeconds: 3
+            periodSeconds: 10

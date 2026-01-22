@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: foreend-platform-ts
+  annotations:
+    tailscale.com/expose: "true"
+    tailscale.com/hostname: foreend-platform
+spec:
+  type: LoadBalancer
+  loadBalancerClass: tailscale
+  selector:
+    app: foreend-platform
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80
+      protocol: TCP
