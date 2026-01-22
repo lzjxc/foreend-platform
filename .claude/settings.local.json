@@ -1,0 +1,32 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(Get-ChildItem -Path \"E:\\\\projects\\\\coding\\\\python\\\\foreend-platform\" -Force)",
+      "Bash(Format-List)",
+      "WebFetch(domain:personal-info.tail2984bd.ts.net)",
+      "Bash(findstr:*)",
+      "Bash(powershell:*)",
+      "Bash(for key in 7a5d2b33d4190ee04b063a071844cc32ea5102bd46ed822ce4ce4a51b4314482 c53cfa2c187d0f7f5b038a270c3b00d5105a4f271fc769dddaae76bec60af677 d26e00eb5154846abfc59dc85c27cbf05148108068acf1157012ea5969ff75dc dad65ed185c82d750805bf04ac42877a0909ace0615bcb08cbb4f3cf00d93fae)",
+      "Bash(do)",
+      "Bash(done)",
+      "WebFetch(domain:litellm.tail2984bd.ts.net)",
+      "Bash(# 为 wordbook 创建 API key curl -s -X POST \"\"http://litellm.tail2984bd.ts.net/key/generate\"\" \\\\ -H \"\"Authorization: Bearer sk-litellm-c377605116be4a25b533729f991fb07d\"\" \\\\ -H \"\"Content-Type: application/json\"\" \\\\ -d ''{ \"\"key_alias\"\": \"\"wordbook\"\", \"\"max_budget\"\": 50.0, \"\"metadata\"\": {\"\"app\"\": \"\"wordbook\"\", \"\"description\"\": \"\"单词本应用\"\"} }'')",
+      "Bash(# 获取所有 key 的详细信息 curl -s \"\"http://litellm.tail2984bd.ts.net/key/list\"\" \\\\ -H \"\"Authorization: Bearer sk-litellm-c377605116be4a25b533729f991fb07d\"\")",
+      "Bash(# 为 ai-weekly 创建 API key echo \"\"=== Creating key for ai-weekly ===\"\" curl -s -X POST \"\"http://litellm.tail2984bd.ts.net/key/generate\"\" \\\\ -H \"\"Authorization: Bearer sk-litellm-c377605116be4a25b533729f991fb07d\"\" \\\\ -H \"\"Content-Type: application/json\"\" \\\\ -d ''{\"\"key_alias\"\": \"\"ai-weekly\"\", \"\"max_budget\"\": 50.0}'')",
+      "Bash(# 为 frontend 创建 API key curl -s -X POST \"\"http://litellm.tail2984bd.ts.net/key/generate\"\" \\\\ -H \"\"Authorization: Bearer sk-litellm-c377605116be4a25b533729f991fb07d\"\" \\\\ -H \"\"Content-Type: application/json\"\" \\\\ -d ''{\"\"key_alias\"\": \"\"frontend\"\", \"\"max_budget\"\": 20.0}'')",
+      "Bash(timeout /t 5 /nobreak)",
+      "Bash(for pod in minio-pool-0-0 minio-pool-0-1 minio-pool-0-2 minio-pool-0-3)",
+      "Bash(do echo \"=== $pod ===\")",
+      "Bash(timeout:*)",
+      "Bash(tailscale status:*)",
+      "Bash(tailscale ping:*)",
+      "Bash(istioctl version:*)",
+      "Bash(for i in 1 2 3 4 5)",
+      "Bash(do curl -s -o /dev/null -w \"Request $i: %{http_code}\\\\n\" http://personal-info.tail2984bd.ts.net/health)",
+      "Bash(netstat:*)",
+      "Bash(istioctl ztunnel-config workload:*)",
+      "Bash(taskkill:*)",
+      "Bash(nslookup:*)"
+    ]
+  }
+}
