@@ -39,10 +39,11 @@ export function HomeworkHistory() {
     });
   };
 
-  // 构建 PDF URL
+  // 构建 PDF URL - use nginx proxy in production
   const getPdfUrl = (pdfPath: string) => {
     if (pdfPath.startsWith('http')) return pdfPath;
-    return `https://minio-s3.tail2984bd.ts.net/homework/${pdfPath}`;
+    // Use proxy path that goes through nginx → MinIO
+    return `/minio-s3/homework/${pdfPath}`;
   };
 
   return (

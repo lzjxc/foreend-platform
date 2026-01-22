@@ -102,12 +102,12 @@ interface AppSpend {
 // LLM Gateway config
 // LiteLLM (for health check) - proxied through nginx in production
 const LITELLM_URL = import.meta.env.DEV
-  ? (import.meta.env.VITE_LLM_GATEWAY_URL || 'http://litellm.tail2984bd.ts.net')
+  ? (import.meta.env.VITE_LLM_GATEWAY_URL || '/llm-gateway')
   : '/llm-gateway';  // Proxied through nginx with API key
 
 // llm-gateway (our wrapper with breakdown API)
-// Use Tailscale URL directly - CORS is enabled on llm-gateway
-const LLM_GATEWAY_API_URL = 'http://llm-gateway.tail2984bd.ts.net';
+// Use proxy path - both dev (Vite) and prod (nginx) proxy to llm-gateway
+const LLM_GATEWAY_API_URL = '/llm-gateway-api';
 
 // Helper to safely extract hostname from URL (handles relative paths)
 const getUrlDisplay = (url: string): string => {
@@ -163,22 +163,11 @@ const APP_COLORS: Record<string, string> = {
 };
 
 // Shared services - core infrastructure
-// Use proxied URLs in dev mode to avoid CORS issues
-const NOTIFICATION_URL = import.meta.env.DEV
-  ? '/notification-api'
-  : (import.meta.env.VITE_NOTIFICATION_URL || 'http://notification.tail2984bd.ts.net');
-
-const DATA_FETCHER_URL = import.meta.env.DEV
-  ? '/data-fetcher-api'
-  : (import.meta.env.VITE_DATA_FETCHER_URL || 'http://data-fetcher.tail2984bd.ts.net');
-
-const PDF_SERVICE_URL = import.meta.env.DEV
-  ? '/pdf-api'
-  : (import.meta.env.VITE_PDF_SERVICE_URL || 'http://pdf-service.tail2984bd.ts.net');
-
-const PERSONAL_INFO_URL = import.meta.env.DEV
-  ? '/personal-api'
-  : (import.meta.env.VITE_API_URL || 'http://personal-info.tail2984bd.ts.net:8000');
+// Use proxy paths for both dev (Vite) and prod (nginx)
+const NOTIFICATION_URL = '/notification-api';
+const DATA_FETCHER_URL = '/data-fetcher-api';
+const PDF_SERVICE_URL = '/pdf-api';
+const PERSONAL_INFO_URL = '/personal-api';
 
 const sharedServices: Omit<ServiceStatus, 'status' | 'responseTime'>[] = [
   {
@@ -223,21 +212,22 @@ const localServices: Omit<ServiceStatus, 'status' | 'responseTime' | 'extra'>[] 
 ];
 
 // App services - business applications
+// Use proxy paths for both dev (Vite) and prod (nginx)
 const appServices: Omit<ServiceStatus, 'status' | 'responseTime' | 'extra'>[] = [
   {
     name: 'ai-weekly-api',
     displayName: 'AI Weekly',
-    url: import.meta.env.VITE_AI_WEEKLY_URL || 'http://ai-weekly-api.tail2984bd.ts.net',
+    url: '/ai-weekly-api',
   },
   {
     name: 'homework-api',
     displayName: 'Homework API',
-    url: import.meta.env.VITE_HOMEWORK_URL || 'http://homework-api.tail2984bd.ts.net',
+    url: '/homework-api',
   },
   {
     name: 'wordbook-api',
     displayName: 'Wordbook API',
-    url: import.meta.env.VITE_WORDBOOK_URL || 'http://wordbook-core-api.tail2984bd.ts.net',
+    url: '/wordbook-api',
   },
 ];
 

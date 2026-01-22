@@ -1,11 +1,15 @@
 import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from 'axios';
 
-// API Base URLs - use nginx proxy in production, Tailscale URLs in development
+// API Base URLs - use nginx proxy in production, Vite proxy in development
 const API_URL = import.meta.env.DEV
-  ? (import.meta.env.VITE_API_URL || 'http://personal-info.tail2984bd.ts.net')
-  : '';  // Empty string means relative URLs, proxied through nginx
-const LLM_GATEWAY_URL = import.meta.env.VITE_LLM_GATEWAY_URL || 'http://llm-gateway.tail2984bd.ts.net';
-const FILE_GATEWAY_URL = import.meta.env.VITE_FILE_GATEWAY_URL || 'http://file-gateway.tail2984bd.ts.net';
+  ? '/personal-api'  // Vite proxy
+  : '/personal-api'; // nginx proxy
+const LLM_GATEWAY_URL = import.meta.env.DEV
+  ? '/lm-studio-api'  // Vite proxy to local LM Studio
+  : '/llm-gateway';   // nginx proxy to LiteLLM
+const FILE_GATEWAY_URL = import.meta.env.DEV
+  ? '/file-api'       // Vite proxy
+  : '/file-api';      // nginx proxy
 
 // Service authentication
 const SERVICE_ID = import.meta.env.VITE_SERVICE_ID || 'personal-info-frontend';
@@ -107,16 +111,12 @@ export const llmClient = createApiClient(LLM_GATEWAY_URL);
 // File Gateway client
 export const fileClient = createApiClient(FILE_GATEWAY_URL);
 
-// Homework API client - call directly (Vite proxy not working for this endpoint)
-const HOMEWORK_API_URL = import.meta.env.DEV
-  ? 'http://homework-api.tail2984bd.ts.net'
-  : '/homework-api';  // In production, use nginx proxy
+// Homework API client - use proxy
+const HOMEWORK_API_URL = '/homework-api';  // Both dev (Vite) and prod (nginx)
 export const homeworkClient = createApiClient(HOMEWORK_API_URL);
 
-// Wordbook API client - call directly
-const WORDBOOK_API_URL = import.meta.env.DEV
-  ? 'http://wordbook-core-api.tail2984bd.ts.net'
-  : '/wordbook-api';  // In production, use nginx proxy
+// Wordbook API client - use proxy
+const WORDBOOK_API_URL = '/wordbook-api';  // Both dev (Vite) and prod (nginx)
 export const wordbookClient = createApiClient(WORDBOOK_API_URL);
 
 // Helper function to handle API responses

@@ -98,6 +98,31 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (p) => p.replace(/^\/pdf-api/, ''),
       },
+      // Proxy LLM Gateway (LiteLLM) for health checks
+      '/llm-gateway': {
+        target: 'http://litellm.tail2984bd.ts.net',
+        changeOrigin: true,
+        rewrite: (p) => p.replace(/^\/llm-gateway/, ''),
+      },
+      // Proxy LLM Gateway API (wrapper service with usage breakdown)
+      '/llm-gateway-api': {
+        target: 'http://llm-gateway.tail2984bd.ts.net',
+        changeOrigin: true,
+        rewrite: (p) => p.replace(/^\/llm-gateway-api/, ''),
+      },
+      // Proxy Wordbook API
+      '/wordbook-api': {
+        target: 'http://wordbook-core-api.tail2984bd.ts.net',
+        changeOrigin: true,
+        rewrite: (p) => p.replace(/^\/wordbook-api/, ''),
+      },
+      // Proxy MinIO S3 for PDF downloads
+      '/minio-s3': {
+        target: 'https://minio-s3.tail2984bd.ts.net',
+        changeOrigin: true,
+        secure: false,
+        rewrite: (p) => p.replace(/^\/minio-s3/, ''),
+      },
     },
   },
 });

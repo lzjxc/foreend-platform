@@ -1,10 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 import type { AIReport, ReportsQueryParams } from '@/types/ai-report';
 
-// API base URL - use proxy in development
-const AI_WEEKLY_API_URL = import.meta.env.DEV
-  ? '/ai-weekly-api'
-  : (import.meta.env.VITE_AI_WEEKLY_URL || 'http://ai-weekly-api.tail2984bd.ts.net');
+// API base URL - use proxy for both dev (Vite) and prod (nginx)
+const AI_WEEKLY_API_URL = '/ai-weekly-api';
 
 // Query key factory for AI reports
 export const aiReportKeys = {
