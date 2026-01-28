@@ -1,4 +1,4 @@
-import { BookOpen, FileText, Calculator, Languages } from 'lucide-react';
+import { BookOpen, FileText, Calculator, Languages, Camera } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { HomeworkGenerator } from '@/components/homework/homework-generator';
@@ -6,6 +6,7 @@ import { HomeworkHistory } from '@/components/homework/homework-history';
 
 const tabs = [
   { path: '/homework', label: '生成作业', icon: FileText },
+  { path: '/homework/grading', label: '上传批改', icon: Camera },
   { path: '/homework/chinese', label: '语文字库', icon: BookOpen },
   { path: '/homework/math', label: '数学题库', icon: Calculator },
   { path: '/homework/english', label: '英语词库', icon: Languages },

@@ -46,13 +46,13 @@ export default defineConfig({
     proxy: {
       // Proxy Homework API for homework assistant
       '/homework-api': {
-        target: 'http://homework-api.tail2984bd.ts.net',
+        target: 'http://192.168.1.191:30485',
         changeOrigin: true,
         rewrite: (p) => p.replace(/^\/homework-api/, ''),
       },
       // Proxy file-gateway API to avoid CORS issues
       '/file-api': {
-        target: 'http://file-gateway.tail2984bd.ts.net',
+        target: 'http://192.168.1.191:31253',
         changeOrigin: true,
         rewrite: (p) => p.replace(/^\/file-api/, ''),
       },
@@ -64,64 +64,82 @@ export default defineConfig({
       },
       // Proxy AI Weekly API for news feed
       '/ai-weekly-api': {
-        target: 'http://ai-weekly-api.tail2984bd.ts.net',
+        target: 'http://192.168.1.191:32615',
         changeOrigin: true,
         rewrite: (p) => p.replace(/^\/ai-weekly-api/, ''),
       },
       // Proxy Config Service for service catalog
       '/config-api': {
-        target: 'http://config-service.tail2984bd.ts.net',
+        target: 'http://192.168.1.191:32683',
         changeOrigin: true,
         rewrite: (p) => p.replace(/^\/config-api/, ''),
       },
       // Proxy Data Fetcher for news data
       '/data-fetcher-api': {
-        target: 'http://data-fetcher.tail2984bd.ts.net',
+        target: 'http://192.168.1.191:30254',
         changeOrigin: true,
         rewrite: (p) => p.replace(/^\/data-fetcher-api/, ''),
       },
       // Proxy Personal Info API for form filling
       '/personal-api': {
-        target: 'http://personal-info.tail2984bd.ts.net:8000',
+        target: 'http://192.168.1.191:32284',
         changeOrigin: true,
         rewrite: (p) => p.replace(/^\/personal-api/, ''),
       },
       // Proxy Notification Service for health checks
       '/notification-api': {
-        target: 'http://notification.tail2984bd.ts.net',
+        target: 'http://192.168.1.191:31417',
         changeOrigin: true,
         rewrite: (p) => p.replace(/^\/notification-api/, ''),
       },
       // Proxy PDF Service for health checks
       '/pdf-api': {
-        target: 'http://pdf-service.tail2984bd.ts.net',
+        target: 'http://192.168.1.191:30661',
         changeOrigin: true,
         rewrite: (p) => p.replace(/^\/pdf-api/, ''),
       },
       // Proxy LLM Gateway (LiteLLM) for health checks
       '/llm-gateway': {
-        target: 'http://litellm.tail2984bd.ts.net',
+        target: 'http://192.168.1.191:30773',
         changeOrigin: true,
         rewrite: (p) => p.replace(/^\/llm-gateway/, ''),
       },
       // Proxy LLM Gateway API (wrapper service with usage breakdown)
       '/llm-gateway-api': {
-        target: 'http://llm-gateway.tail2984bd.ts.net',
+        target: 'http://192.168.1.191:31993',
         changeOrigin: true,
         rewrite: (p) => p.replace(/^\/llm-gateway-api/, ''),
       },
       // Proxy Wordbook API
       '/wordbook-api': {
-        target: 'http://wordbook-core-api.tail2984bd.ts.net',
+        target: 'http://192.168.1.191:30791',
         changeOrigin: true,
         rewrite: (p) => p.replace(/^\/wordbook-api/, ''),
       },
       // Proxy MinIO S3 for PDF downloads
       '/minio-s3': {
-        target: 'https://minio-s3.tail2984bd.ts.net',
+        target: 'https://192.168.1.191:32311',
         changeOrigin: true,
         secure: false,
         rewrite: (p) => p.replace(/^\/minio-s3/, ''),
+      },
+      // Proxy Finance Service for financial tracking
+      '/finance-api': {
+        target: 'http://192.168.1.191:31426',
+        changeOrigin: true,
+        rewrite: (p) => p.replace(/^\/finance-api/, ''),
+      },
+      // Proxy Efficiency Evaluator API
+      '/efficiency-api': {
+        target: 'http://192.168.1.191:30719',
+        changeOrigin: true,
+        rewrite: (p) => p.replace(/^\/efficiency-api/, ''),
+      },
+      // Proxy Doc Service API
+      '/doc-api': {
+        target: 'http://192.168.1.191:30087',
+        changeOrigin: true,
+        rewrite: (p) => p.replace(/^\/doc-api/, ''),
       },
     },
   },

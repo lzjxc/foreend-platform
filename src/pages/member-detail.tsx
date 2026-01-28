@@ -24,6 +24,9 @@ import { cn } from '@/lib/utils';
 import { useState } from 'react';
 import MemberForm from '@/components/members/member-form';
 import ContactsTab from '@/components/contacts/contacts-tab';
+import DocumentsTab from '@/components/documents/documents-tab';
+import AddressesTab from '@/components/addresses/addresses-tab';
+import BankAccountsTab from '@/components/bank-accounts/bank-accounts-tab';
 
 export default function MemberDetail() {
   const { id } = useParams<{ id: string }>();
@@ -163,10 +166,37 @@ export default function MemberDetail() {
 
       {/* Tabs Section */}
       <Tabs defaultValue="overview" className="space-y-4">
-        <TabsList>
+        <TabsList className="flex-wrap h-auto gap-1">
           <TabsTrigger value="overview" className="gap-2">
             <User className="h-4 w-4" />
             概览
+          </TabsTrigger>
+          <TabsTrigger value="documents" className="gap-2">
+            <FileText className="h-4 w-4" />
+            证件
+            {documents && documents.length > 0 && (
+              <Badge variant="secondary" className="ml-1 h-5 px-1.5">
+                {documents.length}
+              </Badge>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="addresses" className="gap-2">
+            <MapPin className="h-4 w-4" />
+            地址
+            {addresses && addresses.length > 0 && (
+              <Badge variant="secondary" className="ml-1 h-5 px-1.5">
+                {addresses.length}
+              </Badge>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="bank-accounts" className="gap-2">
+            <CreditCard className="h-4 w-4" />
+            银行账户
+            {bankAccounts && bankAccounts.length > 0 && (
+              <Badge variant="secondary" className="ml-1 h-5 px-1.5">
+                {bankAccounts.length}
+              </Badge>
+            )}
           </TabsTrigger>
           <TabsTrigger value="contacts" className="gap-2">
             <Phone className="h-4 w-4" />
@@ -182,10 +212,7 @@ export default function MemberDetail() {
         {/* Overview Tab */}
         <TabsContent value="overview">
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <Card
-              className="cursor-pointer hover:shadow-md transition-shadow"
-              onClick={() => navigate('/documents')}
-            >
+            <Card className="hover:shadow-md transition-shadow">
               <CardContent className="flex items-center gap-4 p-4">
                 <FileText className="h-8 w-8 text-blue-500" />
                 <div>
@@ -195,10 +222,7 @@ export default function MemberDetail() {
               </CardContent>
             </Card>
 
-            <Card
-              className="cursor-pointer hover:shadow-md transition-shadow"
-              onClick={() => navigate('/addresses')}
-            >
+            <Card className="hover:shadow-md transition-shadow">
               <CardContent className="flex items-center gap-4 p-4">
                 <MapPin className="h-8 w-8 text-green-500" />
                 <div>
@@ -208,10 +232,7 @@ export default function MemberDetail() {
               </CardContent>
             </Card>
 
-            <Card
-              className="cursor-pointer hover:shadow-md transition-shadow"
-              onClick={() => navigate('/bank-accounts')}
-            >
+            <Card className="hover:shadow-md transition-shadow">
               <CardContent className="flex items-center gap-4 p-4">
                 <CreditCard className="h-8 w-8 text-yellow-500" />
                 <div>
@@ -221,10 +242,7 @@ export default function MemberDetail() {
               </CardContent>
             </Card>
 
-            <Card
-              className="cursor-pointer hover:shadow-md transition-shadow"
-              onClick={() => {}}
-            >
+            <Card className="hover:shadow-md transition-shadow">
               <CardContent className="flex items-center gap-4 p-4">
                 <Phone className="h-8 w-8 text-purple-500" />
                 <div>
@@ -234,6 +252,21 @@ export default function MemberDetail() {
               </CardContent>
             </Card>
           </div>
+        </TabsContent>
+
+        {/* Documents Tab */}
+        <TabsContent value="documents">
+          <DocumentsTab personId={id || ''} />
+        </TabsContent>
+
+        {/* Addresses Tab */}
+        <TabsContent value="addresses">
+          <AddressesTab personId={id || ''} />
+        </TabsContent>
+
+        {/* Bank Accounts Tab */}
+        <TabsContent value="bank-accounts">
+          <BankAccountsTab personId={id || ''} />
         </TabsContent>
 
         {/* Contacts Tab */}

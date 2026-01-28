@@ -41,12 +41,24 @@ export interface ServiceHealthResponse {
   error: string | null;
 }
 
+// Catalog health API response uses different field names
+export interface CatalogHealthServiceItem {
+  id: string;
+  name: string;
+  layer: ServiceLayer;
+  status: 'healthy' | 'unhealthy' | 'unknown';
+  response_time_ms: number | null;
+  url: string;
+}
+
 export interface CatalogHealthResponse {
-  total: number;
-  healthy: number;
-  unhealthy: number;
-  unknown: number;
-  services: ServiceHealthResponse[];
+  checked_at: string;
+  summary: {
+    total: number;
+    healthy: number;
+    unhealthy: number;
+  };
+  services: CatalogHealthServiceItem[];
 }
 
 export interface ServiceDependency {

@@ -1,10 +1,20 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Input } from '@/components/ui/input';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import {
   Upload,
   FolderOpen,
+  Folder,
+  FolderPlus,
   File,
   Image,
   FileText,
@@ -14,9 +24,22 @@ import {
   RefreshCw,
   Grid,
   List,
+  HardDrive,
+  Cloud,
+  ChevronRight,
+  Home,
+  Plus,
 } from 'lucide-react';
 import { useDropzone } from 'react-dropzone';
 import { cn, formatFileSize, isImageFile, isPdfFile } from '@/lib/utils';
+
+interface Platform {
+  id: string;
+  name: string;
+  type: string;
+  is_default: boolean;
+  status: string;
+}
 
 interface Bucket {
   name: string;
@@ -30,21 +53,77 @@ interface FileItem {
   url: string;
 }
 
+interface FolderItem {
+  name: string;
+  path: string;
+}
+
+interface ParsedItems {
+  folders: FolderItem[];
+  files: FileItem[];
+}
+
 export default function Files() {
+  const [platforms, setPlatforms] = useState<Platform[]>([]);
+  const [selectedPlatform, setSelectedPlatform] = useState<string>('minio');
   const [selectedBucket, setSelectedBucket] = useState<string>('');
   const [buckets, setBuckets] = useState<Bucket[]>([]);
   const [files, setFiles] = useState<FileItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isBucketsLoading, setIsBucketsLoading] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
+  const [currentPath, setCurrentPath] = useState<string>(''); // Current directory path
+  const [showCreateFolderDialog, setShowCreateFolderDialog] = useState(false);
+  const [newFolderName, setNewFolderName] = useState('');
+  const [isCreatingFolder, setIsCreatingFolder] = useState(false);
+  const [showCreateBucketDialog, setShowCreateBucketDialog] = useState(false);
+  const [newBucketName, setNewBucketName] = useState('');
+  const [isCreatingBucket, setIsCreatingBucket] = useState(false);
 
-  // Use nginx proxy in production, Vite proxy in development
-  const FILE_GATEWAY_URL = import.meta.env.DEV
-    ? '/file-api'  // Proxied through Vite
-    : '/file-gateway';  // Proxied through nginx in production
+  // Track current request to prevent race conditions (use ref for async callbacks)
+  const requestIdRef = useRef(0);
 
-  const fetchBuckets = useCallback(async () => {
+  // Use nginx proxy (same path for both dev and prod)
+  const FILE_GATEWAY_URL = '/file-api';
+
+  // Platform icon helper
+  const getPlatformIcon = (platformId: string) => {
+    return platformId === 'gdrive' ? Cloud : HardDrive;
+  };
+
+  // Fetch available platforms
+  const fetchPlatforms = useCallback(async () => {
     try {
-      const response = await fetch(`${FILE_GATEWAY_URL}/api/v1/buckets`);
+      const response = await fetch(`${FILE_GATEWAY_URL}/api/v1/platforms`);
+      if (response.ok) {
+        const data = await response.json();
+        const platformList = data.platforms || [];
+        setPlatforms(platformList);
+        // Set default platform if available
+        if (platformList.length > 0) {
+          const defaultPlatform = platformList.find((p: Platform) => p.is_default)?.id || platformList[0].id;
+          setSelectedPlatform(defaultPlatform);
+          return defaultPlatform;
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch platforms:', error);
+    }
+    return 'minio';
+  }, [FILE_GATEWAY_URL]);
+
+  const fetchBuckets = useCallback(async (platform: string, requestId: number) => {
+    setIsBucketsLoading(true);
+    setIsLoading(true);
+    try {
+      // v2.2.0: Use platforms API
+      const response = await fetch(`${FILE_GATEWAY_URL}/api/v1/platforms/${platform}/buckets`);
+
+      // Check if this request is still current (prevent race condition)
+      if (requestId !== requestIdRef.current) {
+        return;
+      }
+
       if (response.ok) {
         const data = await response.json();
         const bucketList = data.buckets || [];
@@ -54,7 +133,13 @@ export default function Files() {
           const firstBucket = bucketList[0].name;
           setSelectedBucket(firstBucket);
           // Fetch files for the first bucket
-          const filesResponse = await fetch(`${FILE_GATEWAY_URL}/api/v1/files/${firstBucket}?max_keys=1000`);
+          const filesResponse = await fetch(`${FILE_GATEWAY_URL}/api/v1/files/${platform}/${firstBucket}?max_keys=1000`);
+
+          // Check again after files fetch
+          if (requestId !== requestIdRef.current) {
+            return;
+          }
+
           if (filesResponse.ok) {
             const filesData = await filesResponse.json();
             const mappedFiles: FileItem[] = (filesData.files || []).map((f: { key: string; size: number; last_modified: string; url: string }) => ({
@@ -67,18 +152,29 @@ export default function Files() {
             mappedFiles.sort((a, b) => new Date(b.lastModified).getTime() - new Date(a.lastModified).getTime());
             setFiles(mappedFiles);
           }
+        } else {
+          setSelectedBucket('');
+          setFiles([]);
         }
       }
     } catch (error) {
       console.error('Failed to fetch buckets:', error);
+    } finally {
+      // Only clear loading if this is still the current request
+      if (requestId === requestIdRef.current) {
+        setIsBucketsLoading(false);
+        setIsLoading(false);
+      }
     }
   }, [FILE_GATEWAY_URL]);
 
-  const fetchFiles = useCallback(async (bucket: string) => {
+  const fetchFiles = useCallback(async (bucket: string, platform: string = selectedPlatform, prefix: string = '') => {
     if (!bucket) return;
     setIsLoading(true);
     try {
-      const response = await fetch(`${FILE_GATEWAY_URL}/api/v1/files/${bucket}?max_keys=1000`);
+      // Add prefix parameter for subdirectory listing
+      const prefixParam = prefix ? `&prefix=${encodeURIComponent(prefix + '/')}` : '';
+      const response = await fetch(`${FILE_GATEWAY_URL}/api/v1/files/${platform}/${bucket}?max_keys=1000${prefixParam}`);
       if (response.ok) {
         const data = await response.json();
         // Map API response (snake_case) to frontend format (camelCase)
@@ -88,8 +184,14 @@ export default function Files() {
           lastModified: f.last_modified,
           url: f.url,
         }));
-        // Sort by lastModified descending (newest first)
-        mappedFiles.sort((a, b) => new Date(b.lastModified).getTime() - new Date(a.lastModified).getTime());
+        // Sort: folders first (size 0 and ends with /), then by lastModified descending
+        mappedFiles.sort((a, b) => {
+          const aIsFolder = a.key.endsWith('/') && a.size === 0;
+          const bIsFolder = b.key.endsWith('/') && b.size === 0;
+          if (aIsFolder && !bIsFolder) return -1;
+          if (!aIsFolder && bIsFolder) return 1;
+          return new Date(b.lastModified || 0).getTime() - new Date(a.lastModified || 0).getTime();
+        });
         setFiles(mappedFiles);
       }
     } catch (error) {
@@ -97,7 +199,7 @@ export default function Files() {
     } finally {
       setIsLoading(false);
     }
-  }, [FILE_GATEWAY_URL]);
+  }, [FILE_GATEWAY_URL, selectedPlatform]);
 
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
     if (!selectedBucket) return;
@@ -106,6 +208,11 @@ export default function Files() {
       const formData = new FormData();
       formData.append('file', file);
       formData.append('bucket', selectedBucket);
+      formData.append('platform', selectedPlatform);
+      // Add path prefix if we're in a subdirectory
+      if (currentPath) {
+        formData.append('path', currentPath);
+      }
 
       try {
         const response = await fetch(`${FILE_GATEWAY_URL}/api/v1/files/upload`, {
@@ -113,13 +220,13 @@ export default function Files() {
           body: formData,
         });
         if (response.ok) {
-          fetchFiles(selectedBucket);
+          fetchFiles(selectedBucket, selectedPlatform);
         }
       } catch (error) {
         console.error('Failed to upload file:', error);
       }
     }
-  }, [FILE_GATEWAY_URL, selectedBucket, fetchFiles]);
+  }, [FILE_GATEWAY_URL, selectedBucket, selectedPlatform, currentPath, fetchFiles]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
@@ -137,15 +244,129 @@ export default function Files() {
 
     try {
       const response = await fetch(
-        `${FILE_GATEWAY_URL}/api/v1/files/${selectedBucket}/${encodeURIComponent(key)}`,
+        `${FILE_GATEWAY_URL}/api/v1/files/${selectedPlatform}/${selectedBucket}/${encodeURIComponent(key)}`,
         { method: 'DELETE' }
       );
       if (response.ok) {
-        fetchFiles(selectedBucket);
+        fetchFiles(selectedBucket, selectedPlatform);
       }
     } catch (error) {
       console.error('Failed to delete file:', error);
     }
+  };
+
+  const downloadFile = async (key: string) => {
+    if (!selectedBucket) return;
+
+    try {
+      // Use accelerated download API for MinIO files
+      const response = await fetch(
+        `${FILE_GATEWAY_URL}/api/v1/files/${selectedPlatform}/${selectedBucket}/${encodeURIComponent(key)}/download?accelerate=true`
+      );
+      if (response.ok) {
+        const data = await response.json();
+        // Open the download URL (could be accelerated via Google Drive)
+        window.open(data.download_url, '_blank');
+      } else {
+        console.error('Failed to get download URL');
+      }
+    } catch (error) {
+      console.error('Failed to download file:', error);
+    }
+  };
+
+  const createFolder = async () => {
+    if (!selectedBucket || !newFolderName.trim()) return;
+
+    setIsCreatingFolder(true);
+    try {
+      // Build the full folder path
+      const folderPath = currentPath
+        ? `${currentPath}/${newFolderName.trim()}`
+        : newFolderName.trim();
+
+      const response = await fetch(`${FILE_GATEWAY_URL}/api/v1/files/folder`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          platform: selectedPlatform,
+          bucket: selectedBucket,
+          path: folderPath,
+        }),
+      });
+
+      if (response.ok) {
+        setShowCreateFolderDialog(false);
+        setNewFolderName('');
+        fetchFiles(selectedBucket, selectedPlatform, currentPath);
+      } else {
+        const error = await response.json();
+        console.error('Failed to create folder:', error);
+        alert(`创建文件夹失败: ${error.detail || '未知错误'}`);
+      }
+    } catch (error) {
+      console.error('Failed to create folder:', error);
+      alert('创建文件夹失败');
+    } finally {
+      setIsCreatingFolder(false);
+    }
+  };
+
+  const createBucket = async () => {
+    if (!newBucketName.trim()) return;
+
+    setIsCreatingBucket(true);
+    try {
+      const response = await fetch(`${FILE_GATEWAY_URL}/api/v1/platforms/${selectedPlatform}/buckets`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: newBucketName.trim(),
+        }),
+      });
+
+      if (response.ok) {
+        setShowCreateBucketDialog(false);
+        setNewBucketName('');
+        // Refresh buckets list
+        requestIdRef.current += 1;
+        fetchBuckets(selectedPlatform, requestIdRef.current);
+      } else {
+        const error = await response.json();
+        console.error('Failed to create bucket:', error);
+        alert(`创建 Bucket 失败: ${error.detail || '未知错误'}`);
+      }
+    } catch (error) {
+      console.error('Failed to create bucket:', error);
+      alert('创建 Bucket 失败');
+    } finally {
+      setIsCreatingBucket(false);
+    }
+  };
+
+  // Handle platform change
+  const handlePlatformChange = (platformId: string) => {
+    // Increment request ID to cancel any pending requests
+    requestIdRef.current += 1;
+    const newRequestId = requestIdRef.current;
+
+    setSelectedPlatform(platformId);
+    setSelectedBucket('');
+    setBuckets([]);
+    setFiles([]);
+    setCurrentPath(''); // Reset path when changing platform
+    fetchBuckets(platformId, newRequestId);
+  };
+
+  // Handle bucket change
+  const handleBucketChange = (bucketName: string) => {
+    setSelectedBucket(bucketName);
+    setCurrentPath(''); // Reset path when changing bucket
+    fetchFiles(bucketName, selectedPlatform);
   };
 
   const getFileIcon = (filename: string) => {
@@ -154,37 +375,150 @@ export default function Files() {
     return File;
   };
 
-  // Load buckets on mount
+  // Parse files to get folders and files at current path level
+  const parseFilesAtPath = useCallback((allFiles: FileItem[], path: string): ParsedItems => {
+    const folders = new Set<string>();
+    const filesAtPath: FileItem[] = [];
+
+    const prefix = path ? `${path}/` : '';
+
+    allFiles.forEach((file) => {
+      // Check if file is under current path
+      if (path && !file.key.startsWith(prefix)) {
+        return;
+      }
+
+      // Get the relative path from current directory
+      const relativePath = path ? file.key.slice(prefix.length) : file.key;
+
+      // Check if this is a folder (has more path segments)
+      const slashIndex = relativePath.indexOf('/');
+      if (slashIndex !== -1) {
+        // This is a folder - extract folder name
+        const folderName = relativePath.slice(0, slashIndex);
+        folders.add(folderName);
+      } else if (relativePath) {
+        // This is a file at current level
+        filesAtPath.push(file);
+      }
+    });
+
+    // Convert folders set to array of FolderItem
+    const folderItems: FolderItem[] = Array.from(folders)
+      .sort()
+      .map((name) => ({
+        name,
+        path: path ? `${path}/${name}` : name,
+      }));
+
+    return { folders: folderItems, files: filesAtPath };
+  }, []);
+
+  // Get parsed items for current path
+  const { folders: currentFolders, files: currentFiles } = parseFilesAtPath(files, currentPath);
+
+  // Navigate to a path (folder or root)
+  const navigateToPath = (path: string) => {
+    setCurrentPath(path);
+    fetchFiles(selectedBucket, selectedPlatform, path);
+  };
+
+  // Navigate to a folder (alias for navigateToPath)
+  const navigateToFolder = (folderPath: string) => {
+    navigateToPath(folderPath);
+  };
+
+  // Get breadcrumb segments
+  const getBreadcrumbs = () => {
+    if (!currentPath) return [];
+    return currentPath.split('/');
+  };
+
+  // Load platforms and buckets on mount
   useEffect(() => {
-    fetchBuckets();
+    const init = async () => {
+      const defaultPlatform = await fetchPlatforms();
+      fetchBuckets(defaultPlatform, 0);
+    };
+    init();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
     <div className="flex h-[calc(100vh-8rem)] gap-4">
-      {/* Sidebar - Buckets */}
-      <Card className="w-48 shrink-0">
-        <CardHeader className="p-4">
+      {/* Sidebar - Platforms & Buckets */}
+      <Card className="w-52 shrink-0">
+        {/* Platform Selector */}
+        <CardHeader className="p-4 pb-2">
+          <CardTitle className="text-sm">平台</CardTitle>
+        </CardHeader>
+        <CardContent className="p-2 pt-0">
+          <div className="flex gap-1">
+            {platforms.map((platform) => {
+              const PlatformIcon = getPlatformIcon(platform.id);
+              return (
+                <button
+                  key={platform.id}
+                  onClick={() => handlePlatformChange(platform.id)}
+                  className={cn(
+                    'flex flex-1 items-center justify-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-medium transition-colors',
+                    selectedPlatform === platform.id
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-muted hover:bg-accent'
+                  )}
+                  title={platform.name}
+                >
+                  <PlatformIcon className="h-3.5 w-3.5" />
+                  <span>{platform.id === 'gdrive' ? 'GDrive' : 'MinIO'}</span>
+                </button>
+              );
+            })}
+          </div>
+          {platforms.length === 0 && (
+            <p className="px-2 py-1 text-xs text-muted-foreground">加载中...</p>
+          )}
+        </CardContent>
+
+        {/* Buckets */}
+        <CardHeader className="p-4 pb-2 pt-2 border-t">
           <CardTitle className="flex items-center justify-between text-sm">
             <span>Buckets</span>
-            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={fetchBuckets}>
-              <RefreshCw className="h-3 w-3" />
-            </Button>
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6"
+                onClick={() => setShowCreateBucketDialog(true)}
+                title="新建 Bucket"
+              >
+                <Plus className="h-3 w-3" />
+              </Button>
+              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => {
+                requestIdRef.current += 1;
+                fetchBuckets(selectedPlatform, requestIdRef.current);
+              }}>
+                <RefreshCw className="h-3 w-3" />
+              </Button>
+            </div>
           </CardTitle>
         </CardHeader>
         <CardContent className="p-2">
           <div className="space-y-1">
-            {buckets.length === 0 ? (
+            {isBucketsLoading ? (
+              <div className="space-y-1">
+                {[...Array(3)].map((_, i) => (
+                  <Skeleton key={i} className="h-8 w-full" />
+                ))}
+              </div>
+            ) : buckets.length === 0 ? (
               <p className="px-2 text-xs text-muted-foreground">
-                点击刷新加载 Buckets
+                {selectedPlatform ? '暂无 Buckets' : '请先选择平台'}
               </p>
             ) : (
               buckets.map((bucket) => (
                 <button
                   key={bucket.name}
-                  onClick={() => {
-                    setSelectedBucket(bucket.name);
-                    fetchFiles(bucket.name);
-                  }}
+                  onClick={() => handleBucketChange(bucket.name)}
                   className={cn(
                     'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm',
                     selectedBucket === bucket.name
@@ -209,8 +543,33 @@ export default function Files() {
             <h2 className="text-lg font-semibold">
               {selectedBucket || '选择一个 Bucket'}
             </h2>
+            {/* Breadcrumb Navigation */}
+            {selectedBucket && (
+              <div className="flex items-center gap-1 text-sm text-muted-foreground mt-1">
+                <button
+                  onClick={() => navigateToPath('')}
+                  className="flex items-center hover:text-foreground transition-colors"
+                >
+                  <Home className="h-3.5 w-3.5" />
+                </button>
+                {getBreadcrumbs().map((segment, index, arr) => (
+                  <span key={index} className="flex items-center gap-1">
+                    <ChevronRight className="h-3.5 w-3.5" />
+                    <button
+                      onClick={() => navigateToPath(arr.slice(0, index + 1).join('/'))}
+                      className={cn(
+                        'hover:text-foreground transition-colors',
+                        index === arr.length - 1 && 'text-foreground font-medium'
+                      )}
+                    >
+                      {segment}
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
             <p className="text-sm text-muted-foreground">
-              {files.length} 个文件
+              {selectedPlatform === 'gdrive' ? 'Google Drive' : 'MinIO'} · {currentFolders.length} 个文件夹 · {currentFiles.length} 个文件
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -224,6 +583,15 @@ export default function Files() {
               ) : (
                 <Grid className="h-4 w-4" />
               )}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowCreateFolderDialog(true)}
+              disabled={!selectedBucket}
+            >
+              <FolderPlus className="mr-2 h-4 w-4" />
+              新建文件夹
             </Button>
             <Button
               variant="outline"
@@ -265,7 +633,7 @@ export default function Files() {
                   <Skeleton key={i} className="h-12 w-full" />
                 ))}
               </div>
-            ) : files.length === 0 ? (
+            ) : currentFolders.length === 0 && currentFiles.length === 0 ? (
               <div className="flex h-full items-center justify-center">
                 <p className="text-muted-foreground">
                   {selectedBucket ? '暂无文件' : '请先选择一个 Bucket'}
@@ -282,14 +650,46 @@ export default function Files() {
                   </tr>
                 </thead>
                 <tbody>
-                  {files.map((file) => {
+                  {/* Folders first */}
+                  {currentFolders.map((folder) => (
+                    <tr
+                      key={folder.path}
+                      className="border-b hover:bg-muted/50 cursor-pointer"
+                      onClick={() => navigateToFolder(folder.path)}
+                    >
+                      <td className="p-3">
+                        <div className="flex items-center gap-2">
+                          <Folder className="h-4 w-4 text-yellow-500" />
+                          <span className="truncate font-medium">{folder.name}/</span>
+                        </div>
+                      </td>
+                      <td className="p-3 text-sm text-muted-foreground">—</td>
+                      <td className="p-3 text-sm text-muted-foreground">—</td>
+                      <td className="p-3">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 text-xs"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigateToFolder(folder.path);
+                          }}
+                        >
+                          打开
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                  {/* Then files */}
+                  {currentFiles.map((file) => {
                     const FileIcon = getFileIcon(file.key);
+                    const fileName = file.key.split('/').pop() || file.key;
                     return (
                       <tr key={file.key} className="border-b hover:bg-muted/50">
                         <td className="p-3">
                           <div className="flex items-center gap-2">
                             <FileIcon className="h-4 w-4 text-muted-foreground" />
-                            <span className="truncate">{file.key}</span>
+                            <span className="truncate">{fileName}</span>
                           </div>
                         </td>
                         <td className="p-3 text-sm text-muted-foreground">
@@ -313,12 +713,10 @@ export default function Files() {
                               variant="ghost"
                               size="icon"
                               className="h-7 w-7"
-                              asChild
-                              title="下载"
+                              onClick={() => downloadFile(file.key)}
+                              title="下载 (加速)"
                             >
-                              <a href={file.url} download target="_blank" rel="noreferrer">
-                                <Download className="h-3 w-3" />
-                              </a>
+                              <Download className="h-3 w-3" />
                             </Button>
                             <Button
                               variant="ghost"
@@ -338,8 +736,28 @@ export default function Files() {
               </table>
             ) : (
               <div className="grid grid-cols-4 gap-4 p-4">
-                {files.map((file) => {
+                {/* Folders first */}
+                {currentFolders.map((folder) => (
+                  <Card
+                    key={folder.path}
+                    className="overflow-hidden cursor-pointer hover:border-primary transition-colors"
+                    onClick={() => navigateToFolder(folder.path)}
+                  >
+                    <div className="flex h-24 items-center justify-center bg-muted">
+                      <Folder className="h-12 w-12 text-yellow-500" />
+                    </div>
+                    <CardContent className="p-2">
+                      <p className="truncate text-sm font-medium" title={folder.name}>
+                        {folder.name}/
+                      </p>
+                      <p className="text-xs text-muted-foreground">文件夹</p>
+                    </CardContent>
+                  </Card>
+                ))}
+                {/* Then files */}
+                {currentFiles.map((file) => {
                   const FileIcon = getFileIcon(file.key);
+                  const fileName = file.key.split('/').pop() || file.key;
                   return (
                     <Card key={file.key} className="overflow-hidden">
                       <div className="flex h-24 items-center justify-center bg-muted">
@@ -354,8 +772,8 @@ export default function Files() {
                         )}
                       </div>
                       <CardContent className="p-2">
-                        <p className="truncate text-sm" title={file.key}>
-                          {file.key}
+                        <p className="truncate text-sm" title={fileName}>
+                          {fileName}
                         </p>
                         <p className="text-xs text-muted-foreground">
                           {formatFileSize(file.size)}
@@ -369,6 +787,94 @@ export default function Files() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Create Folder Dialog */}
+      <Dialog open={showCreateFolderDialog} onOpenChange={setShowCreateFolderDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>新建文件夹</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <Input
+              placeholder="文件夹名称"
+              value={newFolderName}
+              onChange={(e) => setNewFolderName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && newFolderName.trim()) {
+                  createFolder();
+                }
+              }}
+              autoFocus
+            />
+            {currentPath && (
+              <p className="mt-2 text-sm text-muted-foreground">
+                将创建在: {currentPath}/
+              </p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowCreateFolderDialog(false);
+                setNewFolderName('');
+              }}
+            >
+              取消
+            </Button>
+            <Button
+              onClick={createFolder}
+              disabled={!newFolderName.trim() || isCreatingFolder}
+            >
+              {isCreatingFolder ? '创建中...' : '创建'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Bucket Dialog */}
+      <Dialog open={showCreateBucketDialog} onOpenChange={setShowCreateBucketDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>新建 Bucket</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <Input
+              placeholder="Bucket 名称 (3-63 字符)"
+              value={newBucketName}
+              onChange={(e) => setNewBucketName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && newBucketName.trim()) {
+                  createBucket();
+                }
+              }}
+              autoFocus
+            />
+            <p className="mt-2 text-sm text-muted-foreground">
+              {selectedPlatform === 'gdrive'
+                ? '将在 Google Drive 根目录创建文件夹'
+                : '将创建新的 MinIO 存储桶'}
+            </p>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowCreateBucketDialog(false);
+                setNewBucketName('');
+              }}
+            >
+              取消
+            </Button>
+            <Button
+              onClick={createBucket}
+              disabled={!newBucketName.trim() || isCreatingBucket}
+            >
+              {isCreatingBucket ? '创建中...' : '创建'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

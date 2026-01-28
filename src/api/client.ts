@@ -4,9 +4,10 @@ import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from 'ax
 const API_URL = import.meta.env.DEV
   ? '/personal-api'  // Vite proxy
   : '/personal-api'; // nginx proxy
+// LLM Gateway API (for batch tasks, usage stats) - different from LiteLLM
 const LLM_GATEWAY_URL = import.meta.env.DEV
-  ? '/lm-studio-api'  // Vite proxy to local LM Studio
-  : '/llm-gateway';   // nginx proxy to LiteLLM
+  ? '/llm-gateway-api'  // Vite proxy to llm-gateway service
+  : '/llm-gateway-api'; // nginx proxy to llm-gateway service
 const FILE_GATEWAY_URL = import.meta.env.DEV
   ? '/file-api'       // Vite proxy
   : '/file-api';      // nginx proxy
@@ -118,6 +119,22 @@ export const homeworkClient = createApiClient(HOMEWORK_API_URL);
 // Wordbook API client - use proxy
 const WORDBOOK_API_URL = '/wordbook-api';  // Both dev (Vite) and prod (nginx)
 export const wordbookClient = createApiClient(WORDBOOK_API_URL);
+
+// Data Fetcher API client - use proxy
+const DATA_FETCHER_URL = '/data-fetcher-api';  // Both dev (Vite) and prod (nginx)
+export const dataFetcherClient = createApiClient(DATA_FETCHER_URL);
+
+// Finance API client - use proxy
+const FINANCE_API_URL = '/finance-api';  // Both dev (Vite) and prod (nginx)
+export const financeClient = createApiClient(FINANCE_API_URL);
+
+// Efficiency Evaluator API client - use proxy
+const EFFICIENCY_API_URL = '/efficiency-api';  // Both dev (Vite) and prod (nginx)
+export const efficiencyClient = createApiClient(EFFICIENCY_API_URL);
+
+// Doc Service API client - use proxy
+const DOC_SERVICE_URL = '/doc-api';  // Both dev (Vite) and prod (nginx)
+export const docClient = createApiClient(DOC_SERVICE_URL);
 
 // Helper function to handle API responses
 export async function handleApiResponse<T>(promise: Promise<{ data: T }>): Promise<T> {

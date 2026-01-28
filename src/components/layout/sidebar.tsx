@@ -3,19 +3,20 @@ import { motion } from 'framer-motion';
 import {
   Home,
   Activity,
-  Newspaper,
   BookOpen,
   BookMarked,
   Users,
-  FileText,
-  MapPin,
-  Building2,
   Upload,
   FileInput,
   Settings,
   ChevronLeft,
-  User,
-  Server,
+  Brain,
+  Database,
+  Wallet,
+  Gauge,
+  FileText,
+  History,
+  Settings2,
 } from 'lucide-react';
 import { useUIStore } from '@/stores/ui-store';
 import { cn } from '@/lib/utils';
@@ -24,14 +25,16 @@ import { Button } from '@/components/ui/button';
 const navItems = [
   { path: '/dashboard', icon: Home, label: '仪表盘' },
   { path: '/system', icon: Activity, label: '系统看板' },
-  { path: '/services', icon: Server, label: '服务目录' },
-  { path: '/ai-news', icon: Newspaper, label: 'AI 日报' },
+  // { path: '/services', icon: Server, label: '服务目录' },  // 已合并到系统看板
+  { path: '/docs', icon: FileText, label: '文档中心' },
+  { path: '/timeline', icon: History, label: '变更时间线' },
+  { path: '/argo-config', icon: Settings2, label: 'K8s配置' },
+  { path: '/efficiency', icon: Gauge, label: '效能评估' },
+  { path: '/data-sources', icon: Database, label: '数据源' },
+  { path: '/finance', icon: Wallet, label: '财务统计' },
   { path: '/homework', icon: BookOpen, label: '作业助手' },
   { path: '/wordbook', icon: BookMarked, label: '单词本' },
   { path: '/members', icon: Users, label: '家庭成员' },
-  { path: '/documents', icon: FileText, label: '证件管理' },
-  { path: '/addresses', icon: MapPin, label: '地址管理' },
-  { path: '/bank-accounts', icon: Building2, label: '银行账户' },
   { path: '/files', icon: Upload, label: '文件管理' },
   { path: '/form-filling', icon: FileInput, label: '表单填充' },
   { path: '/settings', icon: Settings, label: '设置' },
@@ -50,11 +53,11 @@ export function Sidebar() {
       <div className="flex h-16 items-center justify-between border-b px-4">
         {!sidebarCollapsed && (
           <div className="flex items-center gap-2">
-            <User className="h-6 w-6 text-primary" />
-            <span className="text-lg font-semibold">个人信息管理</span>
+            <Brain className="h-6 w-6 text-primary" />
+            <span className="text-lg font-semibold">个人AI外脑</span>
           </div>
         )}
-        {sidebarCollapsed && <User className="mx-auto h-6 w-6 text-primary" />}
+        {sidebarCollapsed && <Brain className="mx-auto h-6 w-6 text-primary" />}
         <Button
           variant="ghost"
           size="icon"

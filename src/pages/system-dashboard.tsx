@@ -4,6 +4,12 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
   RefreshCw,
   CheckCircle2,
   XCircle,
@@ -12,9 +18,24 @@ import {
   DollarSign,
   TrendingUp,
   Layers,
-  Monitor,
   Network,
+  ExternalLink,
+  Copy,
+  Check,
+  Activity,
+  Globe,
+  Box,
+  Monitor,
 } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
+import {
+  useServices,
+  useCatalogHealth,
+  useServiceHealth,
+  configServiceKeys,
+} from '@/hooks/use-config-service';
+import type { ServiceInfo, ServiceLayer, CatalogHealthServiceItem } from '@/types/config-service';
+import { LAYER_CONFIG, STATUS_CONFIG } from '@/types/config-service';
 
 // Lazy load the architecture diagram to avoid loading React Flow when not needed
 const ServiceArchitectureDiagram = lazy(() => import('@/components/system/service-architecture-diagram'));
@@ -32,13 +53,277 @@ import {
 
 type RefreshInterval = 'manual' | '1min' | '5min';
 
-interface ServiceStatus {
-  name: string;
-  displayName: string;
-  url: string;
-  status: 'online' | 'offline' | 'loading';
-  responseTime?: number;
-  extra?: string; // Additional info like loaded model name
+// Copy to clipboard hook
+function useCopyToClipboard() {
+  const [copiedText, setCopiedText] = useState<string | null>(null);
+
+  const copy = async (text: string) => {
+    await navigator.clipboard.writeText(text);
+    setCopiedText(text);
+    setTimeout(() => setCopiedText(null), 2000);
+  };
+
+  return { copiedText, copy };
+}
+
+// Service Card Component for dashboard
+function ServiceCard({
+  service,
+  healthStatus,
+  responseTime,
+  onClick,
+}: {
+  service: ServiceInfo;
+  healthStatus?: 'healthy' | 'unhealthy' | 'unknown';
+  responseTime?: number | null;
+  onClick: () => void;
+}) {
+  const layerConfig = LAYER_CONFIG[service.layer];
+
+  return (
+    <Card
+      className="cursor-pointer hover:shadow-md transition-shadow"
+      onClick={onClick}
+    >
+      <CardHeader className="flex flex-row items-center justify-between pb-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="text-base shrink-0">{layerConfig.icon}</span>
+          <CardTitle className="text-sm font-medium truncate">{service.name}</CardTitle>
+        </div>
+        {healthStatus === 'healthy' ? (
+          <Badge variant="success" className="gap-1 shrink-0">
+            <CheckCircle2 className="h-3 w-3" />
+            在线
+          </Badge>
+        ) : healthStatus === 'unhealthy' ? (
+          <Badge variant="destructive" className="gap-1 shrink-0">
+            <XCircle className="h-3 w-3" />
+            离线
+          </Badge>
+        ) : (
+          <Badge variant="secondary" className="gap-1 shrink-0">
+            未知
+          </Badge>
+        )}
+      </CardHeader>
+      <CardContent>
+        <div className="flex items-center justify-between text-sm">
+          <span className="text-muted-foreground truncate text-xs">
+            {service.id}
+          </span>
+          {responseTime != null && (
+            <span className="flex items-center gap-1 text-muted-foreground shrink-0">
+              <Clock className="h-3 w-3" />
+              {responseTime}ms
+            </span>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// Service Detail Dialog
+function ServiceDetailDialog({
+  service,
+  open,
+  onOpenChange,
+}: {
+  service: ServiceInfo | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const { copiedText, copy } = useCopyToClipboard();
+  const { data: health, isLoading: healthLoading } = useServiceHealth(
+    service?.id || ''
+  );
+
+  if (!service) return null;
+
+  const layerConfig = LAYER_CONFIG[service.layer];
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <span>{layerConfig.icon}</span>
+            {service.name}
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          {/* Health Status */}
+          <div className="flex items-center gap-4 p-3 bg-muted/50 rounded-lg">
+            <Activity className="h-5 w-5 text-muted-foreground" />
+            <div className="flex-1">
+              <p className="text-sm font-medium">健康状态</p>
+              {healthLoading ? (
+                <Skeleton className="h-4 w-24" />
+              ) : (
+                <p
+                  className={`text-sm ${
+                    health?.status === 'healthy'
+                      ? 'text-green-600'
+                      : health?.status === 'unhealthy'
+                      ? 'text-red-600'
+                      : 'text-gray-500'
+                  }`}
+                >
+                  {health?.status === 'healthy'
+                    ? `✅ 正常 (${health.response_time_ms}ms)`
+                    : health?.status === 'unhealthy'
+                    ? `❌ 异常: ${health.error}`
+                    : '⚪ 未知'}
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* URLs */}
+          <div className="space-y-2">
+            <h4 className="text-sm font-medium flex items-center gap-2">
+              <Globe className="h-4 w-4" />
+              服务地址
+            </h4>
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <code className="flex-1 text-xs bg-muted p-2 rounded overflow-x-auto">
+                  {service.internal_url}
+                </code>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => copy(service.internal_url)}
+                >
+                  {copiedText === service.internal_url ? (
+                    <Check className="h-4 w-4 text-green-500" />
+                  ) : (
+                    <Copy className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
+              {service.tailscale_url && (
+                <div className="flex items-center gap-2">
+                  <code className="flex-1 text-xs bg-blue-50 text-blue-800 p-2 rounded overflow-x-auto">
+                    {service.tailscale_url}
+                  </code>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={() => copy(service.tailscale_url!)}
+                  >
+                    {copiedText === service.tailscale_url ? (
+                      <Check className="h-4 w-4 text-green-500" />
+                    ) : (
+                      <Copy className="h-4 w-4" />
+                    )}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    asChild
+                  >
+                    <a
+                      href={service.tailscale_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                    </a>
+                  </Button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Info Grid */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <p className="text-sm text-muted-foreground">Namespace</p>
+              <p className="font-medium">{service.namespace}</p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Port</p>
+              <p className="font-medium">{service.port}</p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Layer</p>
+              <Badge className={layerConfig.color}>{layerConfig.name}</Badge>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Status</p>
+              <Badge className={STATUS_CONFIG[service.status].color}>
+                {STATUS_CONFIG[service.status].name}
+              </Badge>
+            </div>
+          </div>
+
+          {/* Dependencies */}
+          {service.dependencies.length > 0 && (
+            <div>
+              <h4 className="text-sm font-medium flex items-center gap-2 mb-2">
+                <Box className="h-4 w-4" />
+                依赖服务
+              </h4>
+              <div className="flex flex-wrap gap-2">
+                {service.dependencies.map((dep) => (
+                  <Badge key={dep} variant="secondary">
+                    {dep}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Tags */}
+          {service.tags.length > 0 && (
+            <div>
+              <h4 className="text-sm font-medium mb-2">标签</h4>
+              <div className="flex flex-wrap gap-2">
+                {service.tags.map((tag) => (
+                  <Badge key={tag} variant="outline">
+                    {tag}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Quick Links */}
+          <div className="flex gap-2 pt-2 border-t">
+            {service.docs_url && (
+              <Button variant="outline" size="sm" asChild>
+                <a
+                  href={service.tailscale_url ? `${service.tailscale_url}/docs` : service.docs_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  API 文档
+                  <ExternalLink className="h-3 w-3 ml-1" />
+                </a>
+              </Button>
+            )}
+            {service.health_endpoint && service.tailscale_url && (
+              <Button variant="outline" size="sm" asChild>
+                <a
+                  href={`${service.tailscale_url}${service.health_endpoint}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  健康检查
+                  <ExternalLink className="h-3 w-3 ml-1" />
+                </a>
+              </Button>
+            )}
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
 }
 
 // Breakdown API response types
@@ -99,28 +384,9 @@ interface AppSpend {
   color: string;
 }
 
-// LLM Gateway config
-// LiteLLM (for health check) - proxied through nginx in production
-const LITELLM_URL = import.meta.env.DEV
-  ? (import.meta.env.VITE_LLM_GATEWAY_URL || '/llm-gateway')
-  : '/llm-gateway';  // Proxied through nginx with API key
-
 // llm-gateway (our wrapper with breakdown API)
 // Use proxy path - both dev (Vite) and prod (nginx) proxy to llm-gateway
 const LLM_GATEWAY_API_URL = '/llm-gateway-api';
-
-// Helper to safely extract hostname from URL (handles relative paths)
-const getUrlDisplay = (url: string): string => {
-  try {
-    if (url.startsWith('/')) {
-      // Relative path - return the path without leading slash
-      return url.slice(1) + ' (proxy)';
-    }
-    return new URL(url).hostname;
-  } catch {
-    return url;
-  }
-};
 
 // Local models list (no cost)
 const LOCAL_MODELS = [
@@ -162,88 +428,51 @@ const APP_COLORS: Record<string, string> = {
   'default': '#6B7280',
 };
 
-// Shared services - core infrastructure
-// Use proxy paths for both dev (Vite) and prod (nginx)
-const NOTIFICATION_URL = '/notification-api';
-const DATA_FETCHER_URL = '/data-fetcher-api';
-const PDF_SERVICE_URL = '/pdf-api';
-const PERSONAL_INFO_URL = '/personal-api';
-
-const sharedServices: Omit<ServiceStatus, 'status' | 'responseTime'>[] = [
-  {
-    name: 'llm-gateway',
-    displayName: 'LLM Gateway',
-    url: LITELLM_URL,
-  },
-  {
-    name: 'notification',
-    displayName: 'Notification',
-    url: NOTIFICATION_URL,
-  },
-  {
-    name: 'data-fetcher',
-    displayName: 'Data Fetcher',
-    url: DATA_FETCHER_URL,
-  },
-  {
-    name: 'pdf-service',
-    displayName: 'PDF Service',
-    url: PDF_SERVICE_URL,
-  },
-  {
-    name: 'personal-info',
-    displayName: 'Personal Info',
-    url: PERSONAL_INFO_URL,
-  },
-];
-
-// Local services - running on local network
-// Use nginx proxy in production to avoid CORS issues
-const LM_STUDIO_URL = import.meta.env.DEV
-  ? '/lm-studio-api'  // Proxied through Vite in dev mode
-  : '/lm-studio';  // Proxied through nginx in production (-> 100.113.126.67:1234)
-
-const localServices: Omit<ServiceStatus, 'status' | 'responseTime' | 'extra'>[] = [
-  {
-    name: 'lm-studio',
-    displayName: 'LM Studio',
-    url: LM_STUDIO_URL,
-  },
-];
-
-// App services - business applications
-// Use proxy paths for both dev (Vite) and prod (nginx)
-const appServices: Omit<ServiceStatus, 'status' | 'responseTime' | 'extra'>[] = [
-  {
-    name: 'ai-weekly-api',
-    displayName: 'AI Weekly',
-    url: '/ai-weekly-api',
-  },
-  {
-    name: 'homework-api',
-    displayName: 'Homework API',
-    url: '/homework-api',
-  },
-  {
-    name: 'wordbook-api',
-    displayName: 'Wordbook API',
-    url: '/wordbook-api',
-  },
-];
-
-// All services combined (excluding local services which have special health check)
-const services = [...sharedServices, ...appServices];
+// Layer order for display
+const layerOrder: ServiceLayer[] = ['infra', 'shared', 'business', 'sensitive'];
 
 export default function SystemDashboard() {
+  const queryClient = useQueryClient();
   const [refreshInterval, setRefreshInterval] = useState<RefreshInterval>('manual');
-  const [serviceStatuses, setServiceStatuses] = useState<ServiceStatus[]>(
-    services.map((s) => ({ ...s, status: 'loading' }))
-  );
-  const [localServiceStatuses, setLocalServiceStatuses] = useState<ServiceStatus[]>(
-    localServices.map((s) => ({ ...s, status: 'loading' }))
-  );
-  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [selectedService, setSelectedService] = useState<ServiceInfo | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
+
+  // Config service hooks
+  const { data: services = [], isLoading: servicesLoading, isFetching: servicesFetching } = useServices();
+  const { data: catalogHealth, isLoading: healthLoading, isFetching: healthFetching } = useCatalogHealth();
+
+  const isRefreshing = servicesFetching || healthFetching;
+
+  // Convert health array to map for easy lookup
+  // Note: catalog/health API returns 'id' field, not 'service_id'
+  const healthMap = useMemo(() => {
+    const map: Record<string, CatalogHealthServiceItem> = {};
+    if (catalogHealth?.services) {
+      catalogHealth.services.forEach((h) => {
+        if (h.id) {
+          map[h.id] = h;
+        }
+      });
+    }
+    return map;
+  }, [catalogHealth]);
+
+  // Group services by layer
+  const groupedServices = useMemo(() => {
+    const groups: Record<ServiceLayer, ServiceInfo[]> = {
+      infra: [],
+      shared: [],
+      business: [],
+      sensitive: [],
+    };
+    services.forEach(service => {
+      if (groups[service.layer]) {
+        groups[service.layer].push(service);
+      }
+    });
+    return groups;
+  }, [services]);
 
   // LLM Usage state
   const [usageBreakdown, setUsageBreakdown] = useState<UsageBreakdown | null>(null);
@@ -252,72 +481,6 @@ export default function SystemDashboard() {
   const [isLoadingSpend, setIsLoadingSpend] = useState(true);
   const [, setIsRefreshingSpend] = useState(false); // For background refresh indicator (value unused)
   const [spendError, setSpendError] = useState<string | null>(null);
-
-  const checkServiceHealth = useCallback(async (service: typeof services[0]): Promise<ServiceStatus> => {
-    const startTime = Date.now();
-    try {
-      // LLM Gateway: use /health/readiness (fast ~3ms) instead of /health (slow 4-7s)
-      // LiteLLM's /health checks all model providers which is slow
-      const healthEndpoint = service.name === 'llm-gateway'
-        ? `${service.url}/health/readiness`
-        : `${service.url}/health`;
-
-      const response = await fetch(healthEndpoint, {
-        method: 'GET',
-        mode: 'cors',
-        signal: AbortSignal.timeout(5000),
-      });
-      const responseTime = Date.now() - startTime;
-      // For LLM Gateway: any response (including 401) means service is running
-      // The /health/readiness endpoint returns 200 when ready
-      const isOnline = response.ok || (service.name === 'llm-gateway' && (response.status === 401 || response.status === 503));
-      return {
-        ...service,
-        status: isOnline ? 'online' : 'offline',
-        responseTime,
-      };
-    } catch {
-      return {
-        ...service,
-        status: 'offline',
-      };
-    }
-  }, []);
-
-  // Special health check for LM Studio using /v1/models endpoint
-  const checkLMStudioHealth = useCallback(async (service: typeof localServices[0]): Promise<ServiceStatus> => {
-    const startTime = Date.now();
-    try {
-      const response = await fetch(`${service.url}/v1/models`, {
-        method: 'GET',
-        mode: 'cors',
-        signal: AbortSignal.timeout(5000),
-      });
-      const responseTime = Date.now() - startTime;
-
-      if (response.ok) {
-        const data = await response.json();
-        // LM Studio returns { data: [{ id: "model-name", ... }] }
-        const models = data.data || [];
-        const modelName = models.length > 0 ? models[0].id : '无模型加载';
-        return {
-          ...service,
-          status: 'online',
-          responseTime,
-          extra: modelName,
-        };
-      }
-      return {
-        ...service,
-        status: 'offline',
-      };
-    } catch {
-      return {
-        ...service,
-        status: 'offline',
-      };
-    }
-  }, []);
 
   const fetchUsageBreakdown = useCallback(async (isRefresh = false) => {
     // On refresh, don't show skeleton - keep existing data visible
@@ -330,9 +493,10 @@ export default function SystemDashboard() {
 
     try {
       // Fetch both breakdown (for totals and model/app distribution) and daily (for trend chart) in parallel
+      // Note: llm-gateway uses /usage/* endpoints (not /api/v1/usage/*)
       const [breakdownResponse, dailyResponse] = await Promise.all([
-        fetch(`${LLM_GATEWAY_API_URL}/api/v1/usage/breakdown?days=7`),
-        fetch(`${LLM_GATEWAY_API_URL}/api/v1/usage/daily?days=7`),
+        fetch(`${LLM_GATEWAY_API_URL}/usage/breakdown?days=7`),
+        fetch(`${LLM_GATEWAY_API_URL}/usage/daily?days=7`),
       ]);
 
       if (!breakdownResponse.ok) {
@@ -358,33 +522,19 @@ export default function SystemDashboard() {
     }
   }, []);
 
-  // Refresh only service statuses (fast)
-  const refreshServices = useCallback(async () => {
-    setIsRefreshing(true);
-    setServiceStatuses(services.map((s) => ({ ...s, status: 'loading' })));
-    setLocalServiceStatuses(localServices.map((s) => ({ ...s, status: 'loading' })));
-
-    const [results, localResults] = await Promise.all([
-      Promise.all(services.map(checkServiceHealth)),
-      Promise.all(localServices.map(checkLMStudioHealth)),
-    ]);
-    setServiceStatuses(results);
-    setLocalServiceStatuses(localResults);
-    setLastRefresh(new Date());
-    setIsRefreshing(false);
-  }, [checkServiceHealth, checkLMStudioHealth]);
-
-  // Refresh everything (services + usage data in parallel, don't wait for usage)
+  // Refresh everything
   const refreshAll = useCallback(async () => {
-    // Start both in parallel, but don't wait for usage data
-    refreshServices();
-    fetchUsageBreakdown(true); // isRefresh=true: keep existing data visible
-  }, [refreshServices, fetchUsageBreakdown]);
+    // Invalidate config-service queries to refetch services and health
+    queryClient.invalidateQueries({ queryKey: configServiceKeys.all });
+    // Also refresh LLM usage data
+    fetchUsageBreakdown(true);
+    setLastRefresh(new Date());
+  }, [queryClient, fetchUsageBreakdown]);
 
-  // Initial load
+  // Initial load for LLM usage
   useEffect(() => {
-    refreshAll();
-  }, [refreshAll]);
+    fetchUsageBreakdown(false);
+  }, [fetchUsageBreakdown]);
 
   // Auto refresh
   useEffect(() => {
@@ -396,9 +546,10 @@ export default function SystemDashboard() {
     return () => clearInterval(timer);
   }, [refreshInterval, refreshAll]);
 
-  const onlineCount = serviceStatuses.filter((s) => s.status === 'online').length +
-    localServiceStatuses.filter((s) => s.status === 'online').length;
-  const totalCount = serviceStatuses.length + localServiceStatuses.length;
+  // Calculate online count from health data
+  // Use summary from catalog health if available, otherwise count from healthMap
+  const onlineCount = catalogHealth?.summary?.healthy ?? Object.values(healthMap).filter((h) => h?.status === 'healthy').length;
+  const totalCount = services.length;
 
   // Prepare daily data for chart (always from dailyUsage)
   const dailySpendData = useMemo(() => {
@@ -547,141 +698,67 @@ export default function SystemDashboard() {
         </div>
       </div>
 
-      {/* Shared Services */}
-      <div className="space-y-3">
-        <h3 className="text-sm font-medium text-muted-foreground">共享服务</h3>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-          {serviceStatuses.slice(0, sharedServices.length).map((service) => (
-            <Card key={service.name}>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">
-                  {service.displayName}
-                </CardTitle>
-                {service.status === 'loading' ? (
-                  <Skeleton className="h-5 w-16" />
-                ) : service.status === 'online' ? (
-                  <Badge variant="success" className="gap-1">
-                    <CheckCircle2 className="h-3 w-3" />
-                    在线
-                  </Badge>
-                ) : (
-                  <Badge variant="destructive" className="gap-1">
-                    <XCircle className="h-3 w-3" />
-                    离线
-                  </Badge>
-                )}
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground truncate">
-                    {getUrlDisplay(service.url)}
-                  </span>
-                  {service.responseTime && (
-                    <span className="flex items-center gap-1 text-muted-foreground">
-                      <Clock className="h-3 w-3" />
-                      {service.responseTime}ms
-                    </span>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+      {/* Service Catalog by Layer */}
+      {servicesLoading ? (
+        <div className="space-y-3">
+          <Skeleton className="h-6 w-32" />
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {[1, 2, 3, 4].map((i) => (
+              <Skeleton key={i} className="h-24 w-full" />
+            ))}
+          </div>
         </div>
-      </div>
+      ) : (
+        layerOrder.map((layer) => {
+          const layerServices = groupedServices[layer];
+          if (layerServices.length === 0) return null;
+          const layerConfig = LAYER_CONFIG[layer];
 
-      {/* App Services */}
-      <div className="space-y-3">
-        <h3 className="text-sm font-medium text-muted-foreground">业务服务</h3>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {serviceStatuses.slice(sharedServices.length).map((service) => (
-            <Card key={service.name}>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">
-                  {service.displayName}
-                </CardTitle>
-                {service.status === 'loading' ? (
-                  <Skeleton className="h-5 w-16" />
-                ) : service.status === 'online' ? (
-                  <Badge variant="success" className="gap-1">
-                    <CheckCircle2 className="h-3 w-3" />
-                    在线
-                  </Badge>
-                ) : (
-                  <Badge variant="destructive" className="gap-1">
-                    <XCircle className="h-3 w-3" />
-                    离线
-                  </Badge>
-                )}
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground truncate">
-                    {getUrlDisplay(service.url)}
-                  </span>
-                  {service.responseTime && (
-                    <span className="flex items-center gap-1 text-muted-foreground">
-                      <Clock className="h-3 w-3" />
-                      {service.responseTime}ms
-                    </span>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </div>
+          return (
+            <div key={layer} className="space-y-3">
+              <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                <span>{layerConfig.icon}</span>
+                {layerConfig.name}
+                <Badge variant="secondary" className="text-xs">
+                  {layerServices.length}
+                </Badge>
+              </h3>
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                {layerServices.map((service) => {
+                  const health = healthMap[service.id];
+                  const healthStatus = healthLoading
+                    ? undefined
+                    : health?.status === 'healthy'
+                    ? 'healthy'
+                    : health?.status === 'unhealthy'
+                    ? 'unhealthy'
+                    : 'unknown';
 
-      {/* Local Services */}
-      <div className="space-y-3">
-        <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-          <Monitor className="h-4 w-4" />
-          本地服务
-        </h3>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {localServiceStatuses.map((service) => (
-            <Card key={service.name}>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">
-                  {service.displayName}
-                </CardTitle>
-                {service.status === 'loading' ? (
-                  <Skeleton className="h-5 w-16" />
-                ) : service.status === 'online' ? (
-                  <Badge variant="success" className="gap-1">
-                    <CheckCircle2 className="h-3 w-3" />
-                    在线
-                  </Badge>
-                ) : (
-                  <Badge variant="destructive" className="gap-1">
-                    <XCircle className="h-3 w-3" />
-                    离线
-                  </Badge>
-                )}
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-1">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground truncate">
-                      {service.name === 'lm-studio' ? '100.113.126.67:1234' : service.url.replace('http://', '')}
-                    </span>
-                    {service.responseTime && (
-                      <span className="flex items-center gap-1 text-muted-foreground">
-                        <Clock className="h-3 w-3" />
-                        {service.responseTime}ms
-                      </span>
-                    )}
-                  </div>
-                  {service.extra && service.status === 'online' && (
-                    <div className="text-xs text-muted-foreground truncate" title={service.extra}>
-                      模型: {service.extra}
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </div>
+                  return (
+                    <ServiceCard
+                      key={service.id}
+                      service={service}
+                      healthStatus={healthStatus}
+                      responseTime={health?.response_time_ms}
+                      onClick={() => {
+                        setSelectedService(service);
+                        setDetailOpen(true);
+                      }}
+                    />
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })
+      )}
+
+      {/* Service Detail Dialog */}
+      <ServiceDetailDialog
+        service={selectedService}
+        open={detailOpen}
+        onOpenChange={setDetailOpen}
+      />
 
       {/* LLM Usage Section */}
       <Card>

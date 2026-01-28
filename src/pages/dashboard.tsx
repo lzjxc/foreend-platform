@@ -10,6 +10,8 @@ import {
   AlertTriangle,
   Plus,
   RefreshCw,
+  Upload,
+  Sparkles,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { apiClient } from '@/api/client';
@@ -122,21 +124,21 @@ export default function Dashboard() {
       value: stats?.documentCount ?? '-',
       icon: FileText,
       color: 'text-green-500',
-      href: '/documents',
+      href: '/members',
     },
     {
       title: '地址记录',
       value: stats?.addressCount ?? '-',
       icon: MapPin,
       color: 'text-orange-500',
-      href: '/addresses',
+      href: '/members',
     },
     {
       title: '银行账户',
       value: stats?.bankAccountCount ?? '-',
       icon: Building2,
       color: 'text-purple-500',
-      href: '/bank-accounts',
+      href: '/members',
     },
   ];
 
@@ -150,25 +152,76 @@ export default function Dashboard() {
     other: '其他',
   };
 
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 6) return '夜深了';
+    if (hour < 12) return '早上好';
+    if (hour < 14) return '中午好';
+    if (hour < 18) return '下午好';
+    return '晚上好';
+  };
+
+  const today = new Date();
+  const dateStr = today.toLocaleDateString('zh-CN', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    weekday: 'long',
+  });
+
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-lg font-semibold">仪表盘</h2>
-          <p className="text-sm text-muted-foreground">
-            个人信息管理概览
-          </p>
+      {/* Banner */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 p-8 text-white shadow-2xl border border-white/5">
+        {/* Animated mesh gradient background */}
+        <div className="pointer-events-none absolute inset-0 overflow-hidden">
+          <div className="absolute -left-20 -top-20 h-72 w-72 rounded-full bg-indigo-500/20 blur-3xl animate-pulse" />
+          <div className="absolute -right-10 -bottom-10 h-60 w-60 rounded-full bg-purple-500/20 blur-3xl animate-pulse [animation-delay:1s]" />
+          <div className="absolute left-1/3 top-0 h-40 w-40 rounded-full bg-cyan-500/15 blur-3xl animate-pulse [animation-delay:2s]" />
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={fetchDashboardData}
-          disabled={isLoading}
-        >
-          <RefreshCw className={`mr-2 h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-          刷新
-        </Button>
+
+        {/* Grid pattern overlay */}
+        <div
+          className="pointer-events-none absolute inset-0 opacity-[0.03]"
+          style={{
+            backgroundImage: 'linear-gradient(rgba(255,255,255,.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.5) 1px, transparent 1px)',
+            backgroundSize: '32px 32px',
+          }}
+        />
+
+        {/* Decorative accent line */}
+        <div className="pointer-events-none absolute left-0 top-0 h-full w-1 bg-gradient-to-b from-cyan-400 via-indigo-400 to-purple-400" />
+
+        <div className="relative flex items-center justify-between">
+          <div className="space-y-2">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 shadow-lg shadow-amber-500/25">
+                <Sparkles className="h-5 w-5 text-white" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold tracking-tight">
+                  {getGreeting()}
+                </h2>
+                <p className="text-sm text-indigo-200/80">
+                  {dateStr}
+                </p>
+              </div>
+            </div>
+            <p className="text-base text-indigo-100/90 pl-[52px]">
+              个人AI外脑 &mdash; 统一管理，智能联动
+            </p>
+          </div>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={fetchDashboardData}
+            disabled={isLoading}
+            className="bg-white/10 text-white border-white/10 hover:bg-white/20 backdrop-blur-md rounded-lg shadow-lg"
+          >
+            <RefreshCw className={`mr-2 h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+            刷新数据
+          </Button>
+        </div>
       </div>
 
       {/* Error message */}
@@ -272,22 +325,22 @@ export default function Dashboard() {
                   添加家庭成员
                 </Button>
               </Link>
-              <Link to="/documents">
+              <Link to="/members">
+                <Button variant="outline" className="w-full justify-start gap-2">
+                  <Users className="h-4 w-4" />
+                  管理成员信息
+                </Button>
+              </Link>
+              <Link to="/form-filling">
                 <Button variant="outline" className="w-full justify-start gap-2">
                   <FileText className="h-4 w-4" />
-                  管理证件
+                  填写表单
                 </Button>
               </Link>
-              <Link to="/addresses">
+              <Link to="/files">
                 <Button variant="outline" className="w-full justify-start gap-2">
-                  <MapPin className="h-4 w-4" />
-                  管理地址
-                </Button>
-              </Link>
-              <Link to="/bank-accounts">
-                <Button variant="outline" className="w-full justify-start gap-2">
-                  <Building2 className="h-4 w-4" />
-                  管理银行账户
+                  <Upload className="h-4 w-4" />
+                  文件管理
                 </Button>
               </Link>
             </div>

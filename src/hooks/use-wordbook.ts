@@ -68,6 +68,31 @@ function parseTodayReviewContent(content: string): { due_count: number; words: W
   return { due_count, words };
 }
 
+// 解析文本格式的学习统计
+// 格式: "📊 学习统计\n\n总词数: 7\n今日待复习: 7\n\n🆕 新词: 7\n📖 学习中: 0\n🔄 复习中: 0\n📚 重新学习: 0"
+function parseStatsTextContent(content: string): WordbookStats | null {
+  const totalMatch = content.match(/总词数[:：]\s*(\d+)/);
+  const dueMatch = content.match(/今日待复习[:：]\s*(\d+)/);
+  const newMatch = content.match(/新词[:：]\s*(\d+)/);
+  const learningMatch = content.match(/学习中[:：]\s*(\d+)/);
+  const reviewMatch = content.match(/复习中[:：]\s*(\d+)/);
+  const relearnMatch = content.match(/重新学习[:：]\s*(\d+)/);
+
+  if (totalMatch) {
+    return {
+      total_words: parseInt(totalMatch[1], 10),
+      new_words: newMatch ? parseInt(newMatch[1], 10) : 0,
+      due_words: dueMatch ? parseInt(dueMatch[1], 10) : 0,
+      reviewed_today: 0,
+      streak_days: 0,
+      learning_words: learningMatch ? parseInt(learningMatch[1], 10) : 0,
+      review_words: reviewMatch ? parseInt(reviewMatch[1], 10) : 0,
+      relearning_words: relearnMatch ? parseInt(relearnMatch[1], 10) : 0,
+    };
+  }
+  return null;
+}
+
 // 搜索单词（不入库）
 export function useSearchWord() {
   return useMutation({
@@ -280,6 +305,15 @@ export function useWordbookStats(userId: UserId = DEFAULT_USER_ID) {
         // 如果返回 JSON 格式的 stats
         if (statsResp.data && 'total_words' in statsResp.data) {
           return statsResp.data as WordbookStats;
+        }
+
+        // 如果返回文本格式 (type: "text", content: "...")
+        if (statsResp.data && 'content' in statsResp.data) {
+          const textResponse = statsResp.data as TextApiResponse;
+          const parsed = parseStatsTextContent(textResponse.content || '');
+          if (parsed) {
+            return parsed;
+          }
         }
       } catch {
         // stats API 失败，使用备用方案

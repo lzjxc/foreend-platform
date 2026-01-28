@@ -1,9 +1,12 @@
-import { FileText, ExternalLink, Calendar } from 'lucide-react';
+import { useState } from 'react';
+import { FileText, ExternalLink, Calendar, Camera, CheckCircle, XCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useRecentHomework } from '@/hooks/use-homework';
-import type { HomeworkType } from '@/types/homework';
+import { useRecentHomework, useHomeworkSubmissions } from '@/hooks/use-homework';
+import { HomeworkUpload } from './homework-upload';
+import type { HomeworkType, HomeworkRecord } from '@/types/homework';
 
 const HOMEWORK_TYPE_LABELS: Record<HomeworkType, string> = {
   combined: '综合',
@@ -19,8 +22,45 @@ const HOMEWORK_TYPE_COLORS: Record<HomeworkType, string> = {
   english: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
 };
 
+// Submission status badge component
+function SubmissionBadge({ homeworkId }: { homeworkId: number }) {
+  const { data: submissions } = useHomeworkSubmissions(homeworkId);
+
+  if (!submissions || submissions.length === 0) return null;
+
+  // Get the latest submission
+  const latestSubmission = submissions[0];
+
+  if (latestSubmission.status === 'graded') {
+    const total = latestSubmission.total_correct + latestSubmission.total_wrong;
+    const accuracy = total > 0
+      ? Math.round((latestSubmission.total_correct / total) * 100)
+      : 0;
+    return (
+      <div className="flex items-center gap-1 text-xs">
+        <CheckCircle className="h-3 w-3 text-green-500" />
+        <span className="text-green-600 dark:text-green-400">{accuracy}%</span>
+      </div>
+    );
+  }
+
+  if (latestSubmission.status === 'failed') {
+    return (
+      <div className="flex items-center gap-1 text-xs">
+        <XCircle className="h-3 w-3 text-red-500" />
+        <span className="text-red-600 dark:text-red-400">失败</span>
+      </div>
+    );
+  }
+
+  return (
+    <span className="text-xs text-muted-foreground">批改中...</span>
+  );
+}
+
 export function HomeworkHistory() {
   const { data: records, isLoading } = useRecentHomework();
+  const [uploadHomework, setUploadHomework] = useState<HomeworkRecord | null>(null);
 
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
@@ -87,19 +127,31 @@ export function HomeworkHistory() {
                   <span className="text-xs text-muted-foreground">
                     {formatTime(record.generated_at)}
                   </span>
+                  <SubmissionBadge homeworkId={record.id} />
                 </div>
-                {record.pdf_path && (
-                  <a
-                    href={getPdfUrl(record.pdf_path)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-1 text-sm text-blue-600 hover:underline"
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setUploadHomework(record)}
+                    className="flex items-center gap-1"
                   >
-                    <FileText className="h-4 w-4" />
-                    下载
-                    <ExternalLink className="h-3 w-3" />
-                  </a>
-                )}
+                    <Camera className="h-3 w-3" />
+                    批改
+                  </Button>
+                  {record.pdf_path && (
+                    <a
+                      href={getPdfUrl(record.pdf_path)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1 text-sm text-blue-600 hover:underline"
+                    >
+                      <FileText className="h-4 w-4" />
+                      下载
+                      <ExternalLink className="h-3 w-3" />
+                    </a>
+                  )}
+                </div>
               </div>
             ))}
           </div>
@@ -111,6 +163,15 @@ export function HomeworkHistory() {
           </div>
         )}
       </CardContent>
+
+      {/* Upload Dialog */}
+      {uploadHomework && (
+        <HomeworkUpload
+          homework={uploadHomework}
+          open={!!uploadHomework}
+          onOpenChange={(open) => !open && setUploadHomework(null)}
+        />
+      )}
     </Card>
   );
 }

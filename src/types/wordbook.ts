@@ -83,6 +83,10 @@ export interface WordbookStats {
   due_words: number;
   reviewed_today: number;
   streak_days: number;
+  // Extended stats from text format parsing
+  learning_words?: number;
+  review_words?: number;
+  relearning_words?: number;
 }
 
 // Request types

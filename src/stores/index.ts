@@ -2,3 +2,4 @@
 
 export * from './ui-store';
 export * from './person-store';
+export * from './grading-queue-store';

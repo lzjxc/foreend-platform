@@ -344,7 +344,7 @@ export default function ServiceCatalogPage() {
 
   // Get health status for a service
   const getHealthStatus = (serviceId: string) => {
-    return catalogHealth?.services.find((h) => h.service_id === serviceId)?.status;
+    return catalogHealth?.services.find((h) => h.id === serviceId)?.status;
   };
 
   const handleRefresh = () => {
@@ -387,19 +387,19 @@ export default function ServiceCatalogPage() {
       </div>
 
       {/* Health Summary */}
-      {catalogHealth && (
+      {catalogHealth?.summary && (
         <div className="grid grid-cols-4 gap-4">
           <Card>
             <CardContent className="p-4">
               <p className="text-sm text-muted-foreground">总服务数</p>
-              <p className="text-2xl font-bold">{catalogHealth.total}</p>
+              <p className="text-2xl font-bold">{catalogHealth.summary.total}</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="p-4">
               <p className="text-sm text-muted-foreground">正常</p>
               <p className="text-2xl font-bold text-green-600">
-                {catalogHealth.healthy}
+                {catalogHealth.summary.healthy}
               </p>
             </CardContent>
           </Card>
@@ -407,7 +407,7 @@ export default function ServiceCatalogPage() {
             <CardContent className="p-4">
               <p className="text-sm text-muted-foreground">异常</p>
               <p className="text-2xl font-bold text-red-600">
-                {catalogHealth.unhealthy}
+                {catalogHealth.summary.unhealthy}
               </p>
             </CardContent>
           </Card>
@@ -415,7 +415,7 @@ export default function ServiceCatalogPage() {
             <CardContent className="p-4">
               <p className="text-sm text-muted-foreground">未知</p>
               <p className="text-2xl font-bold text-gray-400">
-                {catalogHealth.unknown}
+                {catalogHealth.summary.total - catalogHealth.summary.healthy - catalogHealth.summary.unhealthy}
               </p>
             </CardContent>
           </Card>

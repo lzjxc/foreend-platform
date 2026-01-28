@@ -189,7 +189,7 @@ export default function ServiceArchitectureDiagram() {
   // Get health status for a service
   const getHealthStatus = useCallback(
     (serviceId: string) => {
-      return catalogHealth?.services.find((h) => h.service_id === serviceId)?.status;
+      return catalogHealth?.services.find((h) => h.id === serviceId)?.status;
     },
     [catalogHealth]
   );
