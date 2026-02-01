@@ -32,6 +32,7 @@ import {
 } from 'lucide-react';
 import { useDropzone } from 'react-dropzone';
 import { cn, formatFileSize, isImageFile, isPdfFile } from '@/lib/utils';
+import { toast } from 'sonner';
 
 interface Platform {
   id: string;
@@ -259,19 +260,29 @@ export default function Files() {
     if (!selectedBucket) return;
 
     try {
-      // Use accelerated download API for MinIO files
+      // Use file-gateway accelerated download API
       const response = await fetch(
-        `${FILE_GATEWAY_URL}/api/v1/files/${selectedPlatform}/${selectedBucket}/${encodeURIComponent(key)}/download?accelerate=true`
+        `${FILE_GATEWAY_URL}/api/v1/files/${selectedPlatform}/${selectedBucket}/${encodeURIComponent(key)}/download?accelerate=true&ttl=300`
       );
       if (response.ok) {
         const data = await response.json();
-        // Open the download URL (could be accelerated via Google Drive)
-        window.open(data.download_url, '_blank');
+        const url = data.download_url || data.url;
+        if (url) {
+          if (data.accelerated) {
+            toast.success('已获取加速下载链接');
+          } else {
+            toast.info('加速不可用，使用直链下载');
+          }
+          window.open(url, '_blank');
+        } else {
+          toast.error('获取下载链接失败');
+        }
       } else {
-        console.error('Failed to get download URL');
+        toast.error('获取下载链接失败');
       }
     } catch (error) {
       console.error('Failed to download file:', error);
+      toast.error('下载请求失败');
     }
   };
 

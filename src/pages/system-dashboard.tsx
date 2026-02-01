@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, Suspense, lazy } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -39,6 +40,11 @@ import { LAYER_CONFIG, STATUS_CONFIG } from '@/types/config-service';
 
 // Lazy load the architecture diagram to avoid loading React Flow when not needed
 const ServiceArchitectureDiagram = lazy(() => import('@/components/system/service-architecture-diagram'));
+
+// Lazy load skill components
+const SkillList = lazy(() => import('@/components/system/skill-list').then(m => ({ default: m.SkillList })));
+const SkillUsageStats = lazy(() => import('@/components/system/skill-usage-stats').then(m => ({ default: m.SkillUsageStats })));
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 import {
   BarChart,
@@ -432,6 +438,8 @@ const APP_COLORS: Record<string, string> = {
 const layerOrder: ServiceLayer[] = ['infra', 'shared', 'business', 'sensitive'];
 
 export default function SystemDashboard() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const currentTab = searchParams.get('tab') || 'services';
   const queryClient = useQueryClient();
   const [refreshInterval, setRefreshInterval] = useState<RefreshInterval>('manual');
   const [selectedService, setSelectedService] = useState<ServiceInfo | null>(null);
@@ -664,7 +672,17 @@ export default function SystemDashboard() {
   }, [currentDataSource]);
 
   return (
-    <div className="space-y-6">
+    <Tabs
+      value={currentTab}
+      onValueChange={(value) => setSearchParams({ tab: value })}
+      className="space-y-4"
+    >
+      <TabsList>
+        <TabsTrigger value="services">服务概览</TabsTrigger>
+        <TabsTrigger value="skills">Skill 管理</TabsTrigger>
+      </TabsList>
+
+      <TabsContent value="services" className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -1129,6 +1147,14 @@ export default function SystemDashboard() {
           </Suspense>
         </CardContent>
       </Card>
-    </div>
+      </TabsContent>
+
+      <TabsContent value="skills" className="space-y-6">
+        <Suspense fallback={<Skeleton className="h-96 w-full" />}>
+          <SkillUsageStats />
+          <SkillList />
+        </Suspense>
+      </TabsContent>
+    </Tabs>
   );
 }

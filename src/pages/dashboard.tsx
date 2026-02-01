@@ -12,9 +12,11 @@ import {
   RefreshCw,
   Upload,
   Sparkles,
+  TrendingDown,
+  TrendingUp,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { apiClient } from '@/api/client';
+import { apiClient, dataFetcherClient } from '@/api/client';
 
 interface DashboardStats {
   memberCount: number;
@@ -32,15 +34,62 @@ interface ExpiringDocument {
   daysUntilExpiry: number;
 }
 
+interface FinancialPrice {
+  symbol: string;
+  price: string;
+  change_percent: number | null;
+  recorded_at: string;
+}
+
+interface FinancialSummary {
+  gold: FinancialPrice;
+  gbp_cny: FinancialPrice;
+  last_updated: string;
+}
+
+const FINANCIAL_CACHE_KEY = 'dashboard_financial_cache';
+
+function getCachedFinancialData(): FinancialSummary | null {
+  try {
+    const cached = localStorage.getItem(FINANCIAL_CACHE_KEY);
+    if (!cached) return null;
+    return JSON.parse(cached) as FinancialSummary;
+  } catch {
+    return null;
+  }
+}
+
+function cacheFinancialData(data: FinancialSummary) {
+  try {
+    localStorage.setItem(FINANCIAL_CACHE_KEY, JSON.stringify(data));
+  } catch {
+    // localStorage full or unavailable
+  }
+}
+
 export default function Dashboard() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [expiringDocs, setExpiringDocs] = useState<ExpiringDocument[]>([]);
+  const [financialData, setFinancialData] = useState<FinancialSummary | null>(getCachedFinancialData);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const fetchFinancialData = async () => {
+    try {
+      const financialResponse = await dataFetcherClient.get<FinancialSummary>('/api/v1/financial/summary');
+      setFinancialData(financialResponse.data);
+      cacheFinancialData(financialResponse.data);
+    } catch {
+      // Financial data is optional, keep showing cached data
+    }
+  };
 
   const fetchDashboardData = async () => {
     setIsLoading(true);
     setError(null);
+
+    // Fetch financial data independently (don't block on personal API)
+    fetchFinancialData();
 
     try {
       // Fetch persons list (API returns { success, data, message } wrapper)
@@ -211,16 +260,70 @@ export default function Dashboard() {
               个人AI外脑 &mdash; 统一管理，智能联动
             </p>
           </div>
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={fetchDashboardData}
-            disabled={isLoading}
-            className="bg-white/10 text-white border-white/10 hover:bg-white/20 backdrop-blur-md rounded-lg shadow-lg"
-          >
-            <RefreshCw className={`mr-2 h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-            刷新数据
-          </Button>
+
+          <div className="flex items-center gap-4">
+            {/* Financial prices ticker */}
+            {financialData && (
+              <div className="hidden sm:flex items-center gap-3">
+                {/* Gold price */}
+                <div className="flex items-center gap-2 rounded-lg bg-white/5 border border-white/10 px-3 py-1.5 backdrop-blur-md">
+                  <span className="text-amber-400 text-xs font-medium">XAU</span>
+                  <span className="text-white text-sm font-semibold tabular-nums">
+                    ${parseFloat(financialData.gold.price).toFixed(1)}
+                  </span>
+                  {financialData.gold.change_percent != null && (
+                    <span className={`flex items-center text-xs font-medium ${
+                      financialData.gold.change_percent >= 0 ? 'text-emerald-400' : 'text-red-400'
+                    }`}>
+                      {financialData.gold.change_percent >= 0 ? (
+                        <TrendingUp className="h-3 w-3 mr-0.5" />
+                      ) : (
+                        <TrendingDown className="h-3 w-3 mr-0.5" />
+                      )}
+                      {Math.abs(financialData.gold.change_percent).toFixed(1)}%
+                    </span>
+                  )}
+                  <span className="text-indigo-300/50 text-[10px]">
+                    {new Date(financialData.gold.recorded_at).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })}
+                  </span>
+                </div>
+
+                {/* GBP/CNY price */}
+                <div className="flex items-center gap-2 rounded-lg bg-white/5 border border-white/10 px-3 py-1.5 backdrop-blur-md">
+                  <span className="text-cyan-400 text-xs font-medium">GBP</span>
+                  <span className="text-white text-sm font-semibold tabular-nums">
+                    ¥{parseFloat(financialData.gbp_cny.price).toFixed(3)}
+                  </span>
+                  {financialData.gbp_cny.change_percent != null && (
+                    <span className={`flex items-center text-xs font-medium ${
+                      financialData.gbp_cny.change_percent >= 0 ? 'text-emerald-400' : 'text-red-400'
+                    }`}>
+                      {financialData.gbp_cny.change_percent >= 0 ? (
+                        <TrendingUp className="h-3 w-3 mr-0.5" />
+                      ) : (
+                        <TrendingDown className="h-3 w-3 mr-0.5" />
+                      )}
+                      {Math.abs(financialData.gbp_cny.change_percent).toFixed(2)}%
+                    </span>
+                  )}
+                  <span className="text-indigo-300/50 text-[10px]">
+                    {new Date(financialData.gbp_cny.recorded_at).toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={fetchDashboardData}
+              disabled={isLoading}
+              className="bg-white/10 text-white border-white/10 hover:bg-white/20 backdrop-blur-md rounded-lg shadow-lg"
+            >
+              <RefreshCw className={`mr-2 h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+              刷新数据
+            </Button>
+          </div>
         </div>
       </div>
 
