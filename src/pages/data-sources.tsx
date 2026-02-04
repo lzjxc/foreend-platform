@@ -16,6 +16,7 @@ import {
   GitFork,
   Clock,
   TrendingUp,
+  TrendingDown,
   ChevronLeft,
   ChevronRight,
   Link,
@@ -24,6 +25,7 @@ import {
   CheckCircle2,
   XCircle,
   AlertCircle,
+  Coins,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -55,10 +57,23 @@ import {
   useDataFetcherHealth,
   useBatchTagTasks,
   useSubmitBatchTag,
-  calculateBatchTagProgress,
-  isBatchTagRunning,
   getMostRecentActiveBatchTag,
+  useFinancialSummary,
+  useFinancialTrend,
+  useArgoWorkflowProgress,
+  parseArgoProgress,
+  ArgoWorkflowStatus,
 } from '@/hooks/use-data-fetcher';
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  ReferenceLine,
+} from 'recharts';
 import type { NewsFilters, DataSource, NewsItem, BatchTagTask } from '@/types/data-fetcher';
 
 // Date filter options for news queries
@@ -107,12 +122,32 @@ function sanitizeHtml(html: string | null | undefined): string {
 
 // ==================== Batch Task Status Component ====================
 
-function BatchTaskStatusCard({ task }: { task: BatchTagTask }) {
-  const progress = calculateBatchTagProgress(task);
-  const isRunning = isBatchTagRunning(task);
+interface BatchTaskStatusCardProps {
+  task: BatchTagTask;
+  argoStatus?: ArgoWorkflowStatus | null;
+}
+
+function BatchTaskStatusCard({ task, argoStatus }: BatchTaskStatusCardProps) {
+  // Use Argo progress if available, otherwise fall back to database
+  const argoProgress = argoStatus ? parseArgoProgress(argoStatus.progress) : null;
+  // When Argo total is 0 (workflow not started yet), use database total_items
+  const displayCompleted = argoProgress?.completed ?? task.completed_items;
+  const displayTotal = (argoProgress && argoProgress.total > 0) ? argoProgress.total : task.total_items;
+  const displayPercentage = displayTotal > 0
+    ? Math.round((displayCompleted / displayTotal) * 100)
+    : 0;
+
+  // Determine effective status based on Argo phase
+  const effectiveStatus = argoStatus?.phase === 'Running' ? 'running' :
+    argoStatus?.phase === 'Succeeded' ? 'completed' :
+    argoStatus?.phase === 'Failed' ? 'failed' :
+    argoStatus?.phase === 'Pending' ? 'pending' :
+    task.status;
+
+  const isRunning = effectiveStatus === 'running' || effectiveStatus === 'pending';
 
   const getStatusIcon = () => {
-    switch (task.status) {
+    switch (effectiveStatus) {
       case 'completed':
         return <CheckCircle2 className="h-5 w-5 text-green-500" />;
       case 'failed':
@@ -127,7 +162,7 @@ function BatchTaskStatusCard({ task }: { task: BatchTagTask }) {
   };
 
   const getStatusText = () => {
-    switch (task.status) {
+    switch (effectiveStatus) {
       case 'pending':
         return '等待处理';
       case 'running':
@@ -139,12 +174,12 @@ function BatchTaskStatusCard({ task }: { task: BatchTagTask }) {
       case 'partial':
         return '部分完成';
       default:
-        return task.status;
+        return String(effectiveStatus);
     }
   };
 
   const getStatusColor = () => {
-    switch (task.status) {
+    switch (effectiveStatus) {
       case 'completed':
         return 'bg-green-100 text-green-800';
       case 'failed':
@@ -165,6 +200,9 @@ function BatchTaskStatusCard({ task }: { task: BatchTagTask }) {
           <div className="flex items-center gap-2">
             {getStatusIcon()}
             <span className="font-medium">批处理打标任务</span>
+            {argoStatus && (
+              <span className="text-xs text-muted-foreground">(实时)</span>
+            )}
           </div>
           <Badge className={getStatusColor()}>{getStatusText()}</Badge>
         </div>
@@ -172,17 +210,17 @@ function BatchTaskStatusCard({ task }: { task: BatchTagTask }) {
         {/* Progress bar */}
         <div className="mb-3">
           <div className="flex justify-between text-sm text-muted-foreground mb-1">
-            <span>进度: {task.completed_items} / {task.total_items}</span>
-            <span>{progress}%</span>
+            <span>进度: {displayCompleted} / {displayTotal}</span>
+            <span>{displayPercentage}%</span>
           </div>
           <div className="h-2 bg-muted rounded-full overflow-hidden">
             <div
               className={`h-full transition-all duration-300 ${
-                task.status === 'failed' ? 'bg-red-500' :
-                task.status === 'completed' ? 'bg-green-500' :
+                effectiveStatus === 'failed' ? 'bg-red-500' :
+                effectiveStatus === 'completed' ? 'bg-green-500' :
                 'bg-blue-500'
               }`}
-              style={{ width: `${progress}%` }}
+              style={{ width: `${displayPercentage}%` }}
             />
           </div>
         </div>
@@ -191,7 +229,7 @@ function BatchTaskStatusCard({ task }: { task: BatchTagTask }) {
         <div className="grid grid-cols-3 gap-2 text-sm">
           <div>
             <p className="text-muted-foreground text-xs">已完成</p>
-            <p className="font-medium text-green-600">{task.completed_items}</p>
+            <p className="font-medium text-green-600">{displayCompleted}</p>
           </div>
           <div>
             <p className="text-muted-foreground text-xs">失败</p>
@@ -199,25 +237,25 @@ function BatchTaskStatusCard({ task }: { task: BatchTagTask }) {
           </div>
           <div>
             <p className="text-muted-foreground text-xs">总数</p>
-            <p className="font-medium">{task.total_items}</p>
+            <p className="font-medium">{displayTotal}</p>
           </div>
         </div>
 
         {/* Time info */}
         <div className="mt-2 text-xs text-muted-foreground">
           <span>创建于: {new Date(task.created_at).toLocaleString()}</span>
-          {task.started_at && (
-            <span className="ml-3">开始于: {new Date(task.started_at).toLocaleString()}</span>
+          {(argoStatus?.startedAt || task.started_at) && (
+            <span className="ml-3">开始于: {new Date(argoStatus?.startedAt || task.started_at!).toLocaleString()}</span>
           )}
-          {task.completed_at && (
-            <span className="ml-3">完成于: {new Date(task.completed_at).toLocaleString()}</span>
+          {(argoStatus?.finishedAt || task.completed_at) && (
+            <span className="ml-3">完成于: {new Date(argoStatus?.finishedAt || task.completed_at!).toLocaleString()}</span>
           )}
         </div>
 
         {/* Error message */}
-        {task.error_message && (
+        {(task.error_message || argoStatus?.message) && (
           <div className="mt-2 text-sm text-red-600 bg-red-50 p-2 rounded">
-            {task.error_message}
+            {argoStatus?.message || task.error_message}
           </div>
         )}
       </CardContent>
@@ -248,6 +286,13 @@ function StatsOverview() {
     if (!batchTasksData?.tasks) return null;
     return getMostRecentActiveBatchTag(batchTasksData.tasks);
   }, [batchTasksData]);
+
+  // Get real-time Argo workflow progress for active task
+  const { data: argoStatus } = useArgoWorkflowProgress(
+    activeTask?.llm_gateway_task_id,
+    !!activeTask,
+    5000  // Poll every 5 seconds
+  );
 
   // Get recent tasks (last 5)
   const recentTasks = useMemo(() => {
@@ -363,7 +408,7 @@ function StatsOverview() {
 
       {/* Active Batch Task Status */}
       {activeTask && (
-        <BatchTaskStatusCard task={activeTask} />
+        <BatchTaskStatusCard task={activeTask} argoStatus={argoStatus} />
       )}
 
       {/* Recent Batch Tasks (collapsed) */}
@@ -1658,6 +1703,343 @@ function TagsManagement() {
   );
 }
 
+// ==================== Financial Trends Tab ====================
+
+// Custom tooltip for financial charts
+function FinancialTooltip({ active, payload, label, unit }: {
+  active?: boolean;
+  payload?: Array<{ value: number }>;
+  label?: string;
+  unit: string;
+}) {
+  if (active && payload && payload.length) {
+    return (
+      <div className="bg-popover border rounded-lg shadow-lg p-3">
+        <p className="text-sm font-medium">{label}</p>
+        <p className="text-lg font-bold">
+          {unit}{payload[0].value.toFixed(unit === '¥' ? 4 : 2)}
+        </p>
+      </div>
+    );
+  }
+  return null;
+}
+
+function FinancialTrendChart({
+  title,
+  data,
+  isLoading,
+  unit,
+  color,
+  latestPrice,
+  changePercent,
+}: {
+  title: string;
+  data: Array<{ date: string; price: number }>;
+  isLoading: boolean;
+  unit: string;
+  color: string;
+  latestPrice?: number;
+  changePercent?: number | null;
+}) {
+  // Calculate min/max for Y-axis domain
+  const prices = data.map(d => d.price);
+  const minPrice = Math.min(...prices);
+  const maxPrice = Math.max(...prices);
+  const padding = (maxPrice - minPrice) * 0.1;
+  const yDomain = [
+    Math.floor((minPrice - padding) * 100) / 100,
+    Math.ceil((maxPrice + padding) * 100) / 100,
+  ];
+
+  // Calculate average for reference line
+  const avgPrice = prices.length > 0 ? prices.reduce((a, b) => a + b, 0) / prices.length : 0;
+
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-base font-medium flex items-center gap-2">
+            <Coins className="h-4 w-4" style={{ color }} />
+            {title}
+          </CardTitle>
+          {latestPrice !== undefined && (
+            <div className="flex items-center gap-2">
+              <span className="text-xl font-bold">
+                {unit}{latestPrice.toFixed(unit === '¥' ? 4 : 2)}
+              </span>
+              {changePercent !== null && changePercent !== undefined && (
+                <Badge
+                  variant={changePercent >= 0 ? 'default' : 'destructive'}
+                  className="flex items-center gap-1"
+                >
+                  {changePercent >= 0 ? (
+                    <TrendingUp className="h-3 w-3" />
+                  ) : (
+                    <TrendingDown className="h-3 w-3" />
+                  )}
+                  {Math.abs(changePercent).toFixed(2)}%
+                </Badge>
+              )}
+            </div>
+          )}
+        </div>
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <div className="h-[250px] flex items-center justify-center">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          </div>
+        ) : data.length === 0 ? (
+          <div className="h-[250px] flex items-center justify-center text-muted-foreground">
+            暂无数据
+          </div>
+        ) : (
+          <div className="h-[250px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={data} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                <XAxis
+                  dataKey="date"
+                  tick={{ fontSize: 12 }}
+                  tickLine={false}
+                  axisLine={false}
+                  tickFormatter={(value) => {
+                    const date = new Date(value);
+                    return `${date.getMonth() + 1}/${date.getDate()}`;
+                  }}
+                />
+                <YAxis
+                  domain={yDomain}
+                  tick={{ fontSize: 12 }}
+                  tickLine={false}
+                  axisLine={false}
+                  tickFormatter={(value) => `${unit}${value.toFixed(unit === '¥' ? 2 : 0)}`}
+                  width={unit === '¥' ? 65 : 55}
+                />
+                <Tooltip content={<FinancialTooltip unit={unit} />} />
+                <ReferenceLine
+                  y={avgPrice}
+                  stroke="#888"
+                  strokeDasharray="3 3"
+                  label={{ value: '平均', position: 'right', fontSize: 10 }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="price"
+                  stroke={color}
+                  strokeWidth={2}
+                  dot={false}
+                  activeDot={{ r: 4, strokeWidth: 2 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function FinancialTrends() {
+  const [days, setDays] = useState(30);
+  const { data: summary, refetch: refetchSummary } = useFinancialSummary();
+  const { data: goldTrend, isLoading: goldLoading, refetch: refetchGold } = useFinancialTrend('XAU/USD', days);
+  const { data: gbpTrend, isLoading: gbpLoading, refetch: refetchGbp } = useFinancialTrend('GBP/CNY', days);
+  const { data: usdTrend, isLoading: usdLoading, refetch: refetchUsd } = useFinancialTrend('USD/CNY', days);
+
+  const handleRefresh = () => {
+    refetchSummary();
+    refetchGold();
+    refetchGbp();
+    refetchUsd();
+    toast.success('数据已刷新');
+  };
+
+  const goldData = useMemo(() => {
+    if (!goldTrend?.prices) return [];
+    return goldTrend.prices.map(p => ({
+      date: p.date,
+      price: typeof p.price === 'string' ? parseFloat(p.price) : p.price,
+    }));
+  }, [goldTrend]);
+
+  const gbpData = useMemo(() => {
+    if (!gbpTrend?.prices) return [];
+    return gbpTrend.prices.map(p => ({
+      date: p.date,
+      price: typeof p.price === 'string' ? parseFloat(p.price) : p.price,
+    }));
+  }, [gbpTrend]);
+
+  const usdData = useMemo(() => {
+    if (!usdTrend?.prices) return [];
+    return usdTrend.prices.map(p => ({
+      date: p.date,
+      price: typeof p.price === 'string' ? parseFloat(p.price) : p.price,
+    }));
+  }, [usdTrend]);
+
+  return (
+    <div className="space-y-6">
+      {/* Header with controls */}
+      <div className="flex items-center justify-between">
+        <h3 className="text-lg font-semibold">金融数据趋势</h3>
+        <div className="flex items-center gap-2">
+          <Select value={String(days)} onValueChange={(v) => setDays(Number(v))}>
+            <SelectTrigger className="w-[120px]">
+              <Calendar className="h-4 w-4 mr-2" />
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="7">7 天</SelectItem>
+              <SelectItem value="14">14 天</SelectItem>
+              <SelectItem value="30">30 天</SelectItem>
+              <SelectItem value="60">60 天</SelectItem>
+              <SelectItem value="90">90 天</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button variant="outline" size="sm" onClick={handleRefresh}>
+            <RefreshCw className="h-4 w-4 mr-2" />
+            刷新
+          </Button>
+        </div>
+      </div>
+
+      {/* Summary Cards */}
+      {summary && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="h-10 w-10 rounded-full bg-yellow-100 flex items-center justify-center">
+                    <Coins className="h-5 w-5 text-yellow-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">黄金价格</p>
+                    <p className="text-xl font-bold">${parseFloat(summary.gold.price).toFixed(2)}</p>
+                  </div>
+                </div>
+                {summary.gold.change_percent !== null && (
+                  <Badge
+                    variant={summary.gold.change_percent >= 0 ? 'default' : 'destructive'}
+                    className="text-sm"
+                  >
+                    {summary.gold.change_percent >= 0 ? '+' : ''}
+                    {summary.gold.change_percent.toFixed(2)}%
+                  </Badge>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground mt-2">
+                更新于: {new Date(summary.gold.recorded_at).toLocaleString('zh-CN')}
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center">
+                    <span className="text-green-600 font-bold text-sm">$</span>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">美元/人民币</p>
+                    <p className="text-xl font-bold">¥{summary.usd_cny ? parseFloat(summary.usd_cny.price).toFixed(4) : '-'}</p>
+                  </div>
+                </div>
+                {summary.usd_cny?.change_percent !== null && summary.usd_cny?.change_percent !== undefined && (
+                  <Badge
+                    variant={summary.usd_cny.change_percent >= 0 ? 'default' : 'destructive'}
+                    className="text-sm"
+                  >
+                    {summary.usd_cny.change_percent >= 0 ? '+' : ''}
+                    {summary.usd_cny.change_percent.toFixed(2)}%
+                  </Badge>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground mt-2">
+                更新于: {summary.usd_cny ? new Date(summary.usd_cny.recorded_at).toLocaleString('zh-CN') : '-'}
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
+                    <span className="text-blue-600 font-bold text-sm">£</span>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">英镑/人民币</p>
+                    <p className="text-xl font-bold">¥{parseFloat(summary.gbp_cny.price).toFixed(4)}</p>
+                  </div>
+                </div>
+                {summary.gbp_cny.change_percent !== null && (
+                  <Badge
+                    variant={summary.gbp_cny.change_percent >= 0 ? 'default' : 'destructive'}
+                    className="text-sm"
+                  >
+                    {summary.gbp_cny.change_percent >= 0 ? '+' : ''}
+                    {summary.gbp_cny.change_percent.toFixed(2)}%
+                  </Badge>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground mt-2">
+                更新于: {new Date(summary.gbp_cny.recorded_at).toLocaleString('zh-CN')}
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Trend Charts */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+        <FinancialTrendChart
+          title="黄金价格 (USD/oz)"
+          data={goldData}
+          isLoading={goldLoading}
+          unit="$"
+          color="#eab308"
+          latestPrice={goldTrend?.current_price ? (typeof goldTrend.current_price === 'string' ? parseFloat(goldTrend.current_price) : goldTrend.current_price) : undefined}
+          changePercent={goldTrend?.change_1d}
+        />
+
+        <FinancialTrendChart
+          title="美元/人民币汇率"
+          data={usdData}
+          isLoading={usdLoading}
+          unit="¥"
+          color="#22c55e"
+          latestPrice={usdTrend?.current_price ? (typeof usdTrend.current_price === 'string' ? parseFloat(usdTrend.current_price) : usdTrend.current_price) : undefined}
+          changePercent={usdTrend?.change_1d}
+        />
+
+        <FinancialTrendChart
+          title="英镑/人民币汇率"
+          data={gbpData}
+          isLoading={gbpLoading}
+          unit="¥"
+          color="#3b82f6"
+          latestPrice={gbpTrend?.current_price ? (typeof gbpTrend.current_price === 'string' ? parseFloat(gbpTrend.current_price) : gbpTrend.current_price) : undefined}
+          changePercent={gbpTrend?.change_1d}
+        />
+      </div>
+
+      {/* Data source info */}
+      <Card>
+        <CardContent className="p-4">
+          <p className="text-sm text-muted-foreground">
+            数据来源: 金融数据 API · 每日自动采集 · 上次更新: {summary?.last_updated ? new Date(summary.last_updated).toLocaleString('zh-CN') : '-'}
+          </p>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 // ==================== Main Page ====================
 
 export default function DataSourcesPage() {
@@ -1674,10 +2056,14 @@ export default function DataSourcesPage() {
       </div>
 
       <Tabs defaultValue="stats" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-6 lg:w-auto lg:inline-grid">
+        <TabsList className="grid w-full grid-cols-7 lg:w-auto lg:inline-grid">
           <TabsTrigger value="stats" className="gap-2">
             <BarChart3 className="h-4 w-4" />
             <span className="hidden sm:inline">统计</span>
+          </TabsTrigger>
+          <TabsTrigger value="financial" className="gap-2">
+            <Coins className="h-4 w-4" />
+            <span className="hidden sm:inline">金融</span>
           </TabsTrigger>
           <TabsTrigger value="news" className="gap-2">
             <Newspaper className="h-4 w-4" />
@@ -1703,6 +2089,10 @@ export default function DataSourcesPage() {
 
         <TabsContent value="stats">
           <StatsOverview />
+        </TabsContent>
+
+        <TabsContent value="financial">
+          <FinancialTrends />
         </TabsContent>
 
         <TabsContent value="news">

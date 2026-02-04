@@ -140,6 +140,24 @@ export default defineConfig({
                 changeOrigin: true,
                 rewrite: function (p) { return p.replace(/^\/doc-api/, ''); },
             },
+            // Proxy Remote Wake Service
+            '/remote-wake-api': {
+                target: 'http://192.168.1.191:32044',
+                changeOrigin: true,
+                rewrite: function (p) { return p.replace(/^\/remote-wake-api/, ''); },
+            },
+            // Proxy Argo Workflows API
+            '/argo-api': {
+                target: 'http://192.168.1.191:31131',
+                changeOrigin: true,
+                rewrite: function (p) { return p.replace(/^\/argo-api/, ''); },
+            },
+            // Proxy MacBook Camera Service (direct LAN access)
+            '/mac-camera-api': {
+                target: 'http://192.168.1.133:8090',
+                changeOrigin: true,
+                rewrite: function (p) { return p.replace(/^\/mac-camera-api/, ''); },
+            },
         },
     },
 });

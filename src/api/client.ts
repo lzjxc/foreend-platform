@@ -136,6 +136,18 @@ export const efficiencyClient = createApiClient(EFFICIENCY_API_URL);
 const DOC_SERVICE_URL = '/doc-api';  // Both dev (Vite) and prod (nginx)
 export const docClient = createApiClient(DOC_SERVICE_URL);
 
+// Remote Wake Service API client - use proxy
+const REMOTE_WAKE_URL = '/remote-wake-api';  // Both dev (Vite) and prod (nginx)
+export const remoteWakeClient = createApiClient(REMOTE_WAKE_URL);
+
+// Argo Workflows API client - use proxy
+const ARGO_API_URL = '/argo-api';  // Both dev (Vite) and prod (nginx)
+export const argoClient = createApiClient(ARGO_API_URL);
+
+// MacBook Camera Service API client - direct LAN proxy
+const MAC_CAMERA_URL = '/mac-camera-api';  // Both dev (Vite) and prod (nginx)
+export const macCameraClient = createApiClient(MAC_CAMERA_URL);
+
 // Helper function to handle API responses
 export async function handleApiResponse<T>(promise: Promise<{ data: T }>): Promise<T> {
   const response = await promise;

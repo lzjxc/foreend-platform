@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { dataFetcherClient } from '@/api/client';
+import { dataFetcherClient, argoClient } from '@/api/client';
 import type {
   TrendingRepo,
   RepoDetail,
@@ -29,6 +29,8 @@ import type {
   BatchTagTask,
   BatchTagTasksResponse,
   BatchTagStatus,
+  FinancialSummary,
+  FinancialTrendResponse,
 } from '@/types/data-fetcher';
 
 // ==================== Query Keys ====================
@@ -76,6 +78,10 @@ export const dataFetcherKeys = {
     [...dataFetcherKeys.all, 'batch-tasks', { status }] as const,
   batchTask: (taskId: string) =>
     [...dataFetcherKeys.all, 'batch-task', taskId] as const,
+  // Financial
+  financialSummary: () => [...dataFetcherKeys.all, 'financial', 'summary'] as const,
+  financialTrend: (symbol: string, days?: number) =>
+    [...dataFetcherKeys.all, 'financial', 'trend', symbol, { days }] as const,
 };
 
 // ==================== GitHub Hooks ====================
@@ -506,6 +512,76 @@ export function getMostRecentActiveBatchTag(tasks: BatchTagTask[]): BatchTagTask
   )[0];
 }
 
+// ==================== Argo Workflow Progress ====================
+
+/**
+ * Argo workflow status response (simplified)
+ */
+export interface ArgoWorkflowStatus {
+  phase: 'Pending' | 'Running' | 'Succeeded' | 'Failed' | 'Error';
+  progress: string;  // e.g., "12/248"
+  startedAt: string;
+  finishedAt?: string;
+  message?: string;
+}
+
+/**
+ * Get Argo workflow progress by llm_gateway_task_id
+ * Workflow name format: llm-batch-{first 8 chars of task_id}-*
+ */
+export function useArgoWorkflowProgress(
+  llmGatewayTaskId: string | undefined,
+  enabled: boolean = true,
+  refetchInterval: number = 5000
+) {
+  return useQuery({
+    queryKey: ['argo', 'workflow', llmGatewayTaskId],
+    queryFn: async (): Promise<ArgoWorkflowStatus | null> => {
+      if (!llmGatewayTaskId) return null;
+
+      // Workflow name prefix: llm-batch-{first 8 chars}
+      const prefix = `llm-batch-${llmGatewayTaskId.substring(0, 8)}`;
+
+      // List all workflows in argo namespace
+      const { data } = await argoClient.get('/api/v1/workflows/argo');
+
+      // Find matching workflow by name prefix
+      const workflows = data?.items || [];
+      const workflow = workflows.find((w: { metadata: { name: string } }) =>
+        w.metadata.name.startsWith(prefix)
+      );
+
+      if (!workflow?.status) return null;
+
+      return {
+        phase: workflow.status.phase,
+        progress: workflow.status.progress || '0/0',
+        startedAt: workflow.status.startedAt,
+        finishedAt: workflow.status.finishedAt,
+        message: workflow.status.message,
+      };
+    },
+    enabled: !!llmGatewayTaskId && enabled,
+    refetchInterval: refetchInterval > 0 ? refetchInterval : false,
+    retry: 1,
+    staleTime: 2000,
+  });
+}
+
+/**
+ * Parse Argo progress string to numbers
+ * @param progress - e.g., "12/248"
+ * @returns { completed, total, percentage }
+ */
+export function parseArgoProgress(progress: string): { completed: number; total: number; percentage: number } {
+  const match = progress.match(/^(\d+)\/(\d+)$/);
+  if (!match) return { completed: 0, total: 0, percentage: 0 };
+  const completed = parseInt(match[1], 10);
+  const total = parseInt(match[2], 10);
+  const percentage = total > 0 ? Math.round((completed / total) * 100) : 0;
+  return { completed, total, percentage };
+}
+
 // ==================== Health Hooks ====================
 
 export function useDataFetcherHealth() {
@@ -516,5 +592,42 @@ export function useDataFetcherHealth() {
       return data;
     },
     refetchInterval: 30000, // Refresh every 30 seconds
+  });
+}
+
+// ==================== Financial Hooks ====================
+
+/**
+ * Get financial summary (gold price, GBP/CNY rate)
+ */
+export function useFinancialSummary() {
+  return useQuery({
+    queryKey: dataFetcherKeys.financialSummary(),
+    queryFn: async () => {
+      const { data } = await dataFetcherClient.get<FinancialSummary>(
+        '/api/v1/financial/summary'
+      );
+      return data;
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+}
+
+/**
+ * Get financial trend for a specific symbol
+ * @param symbol - 'XAU/USD' (gold), 'GBP/CNY' (GBP/CNY rate), or 'USD/CNY' (USD/CNY rate)
+ * @param days - Number of days of history (default 30)
+ */
+export function useFinancialTrend(symbol: 'XAU/USD' | 'GBP/CNY' | 'USD/CNY', days: number = 30) {
+  return useQuery({
+    queryKey: dataFetcherKeys.financialTrend(symbol, days),
+    queryFn: async () => {
+      const { data } = await dataFetcherClient.get<FinancialTrendResponse>(
+        `/api/v1/financial/trend/${encodeURIComponent(symbol)}?days=${days}`
+      );
+      return data;
+    },
+    staleTime: 10 * 60 * 1000, // 10 minutes
+    enabled: !!symbol,
   });
 }

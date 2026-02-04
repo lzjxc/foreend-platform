@@ -22,6 +22,7 @@ import EfficiencyEvaluator from '@/pages/efficiency-evaluator';
 import DocsPage from '@/pages/docs';
 import TimelinePage from '@/pages/timeline';
 import ArgoConfigPage from '@/pages/argo-config';
+import MachinesPage from '@/pages/machines';
 
 function App() {
   return (
@@ -49,6 +50,7 @@ function App() {
         <Route path="addresses" element={<Navigate to="/members" replace />} />
         <Route path="bank-accounts" element={<Navigate to="/members" replace />} />
         <Route path="ai-news" element={<Navigate to="/dashboard" replace />} />
+        <Route path="machines" element={<MachinesPage />} />
         <Route path="files" element={<Files />} />
         <Route path="form-filling" element={<FormFilling />} />
         <Route path="finance" element={<Finance />} />

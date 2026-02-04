@@ -123,3 +123,102 @@ export const DIMENSION_LABELS: Record<keyof EvaluationDimensions, string> = {
   security: '安全性',
   scalability: '可伸缩性',
 };
+
+// ==================== Compliance Audit Types ====================
+
+// Compliance audit task status
+export type ComplianceTaskStatus = 'pending' | 'processing' | 'completed' | 'failed';
+
+// Violation in a service audit
+export interface ComplianceViolation {
+  rule_id: string;
+  rule_name: string;
+  severity: 'critical' | 'high' | 'medium' | 'low';
+  file: string;
+  line: number | null;
+  detail: string;
+  fix_suggestion: string;
+}
+
+// Per-service audit result within a report
+export interface ComplianceServiceResult {
+  service_id: string;
+  layer: string;
+  score: number;
+  grade: string;
+  violations: ComplianceViolation[];
+  files_scanned: number;
+}
+
+// Full audit result embedded in a task
+export interface ComplianceAuditResult {
+  audit_id: string;
+  scanned_at: string;
+  total_services: number;
+  total_violations: number;
+  critical_total: number;
+  services: ComplianceServiceResult[];
+  system_compliance_score: number;
+  markdown_report: string;
+}
+
+// Compliance audit task (list item)
+export interface ComplianceTaskListItem {
+  task_id: string;
+  status: ComplianceTaskStatus;
+  target_services: string[] | null;
+  total_services_scanned: number | null;
+  total_violations: number | null;
+  system_score: number | null;
+  created_at: string;
+  completed_at: string | null;
+}
+
+// Compliance audit task (full detail)
+export interface ComplianceTaskDetail {
+  task_id: string;
+  status: ComplianceTaskStatus;
+  target_services: string[] | null;
+  total_services_scanned: number;
+  total_violations: number;
+  critical_count: number;
+  system_score: number;
+  error_message: string | null;
+  created_at: string;
+  started_at: string | null;
+  completed_at: string | null;
+  result: ComplianceAuditResult | null;
+}
+
+// Task list API response
+export interface ComplianceTasksResponse {
+  tasks: ComplianceTaskListItem[];
+  total: number;
+}
+
+// Create audit API response
+export interface ComplianceCreateResponse {
+  task_id: string;
+  status: ComplianceTaskStatus;
+  message: string;
+  created_at: string;
+}
+
+// Per-service violations API response
+export interface ComplianceServiceViolations {
+  service_id: string;
+  audit_id: string;
+  audited_at: string;
+  compliance_score: number | null;
+  grade: string | null;
+  violations: ComplianceViolation[];
+  total: number;
+}
+
+// Severity config for UI
+export const SEVERITY_CONFIG: Record<string, { label: string; color: string; dotColor: string }> = {
+  critical: { label: '严重', color: 'bg-red-100 text-red-800 border-red-200', dotColor: 'bg-red-500' },
+  high: { label: '高', color: 'bg-orange-100 text-orange-800 border-orange-200', dotColor: 'bg-orange-500' },
+  medium: { label: '中', color: 'bg-yellow-100 text-yellow-800 border-yellow-200', dotColor: 'bg-yellow-500' },
+  low: { label: '低', color: 'bg-blue-100 text-blue-800 border-blue-200', dotColor: 'bg-blue-500' },
+};

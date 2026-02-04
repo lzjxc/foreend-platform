@@ -5,12 +5,14 @@
 ## Features
 
 - **System Dashboard** - Service health monitoring, LLM usage stats, architecture diagram, Skill management
+- **Remote Devices** - Wake-on-LAN, shutdown, MacBook camera (snapshot, HLS live stream, MinIO upload)
 - **Homework Assistant** - Chinese, Math, English homework with AI-powered grading
 - **Wordbook** - FSRS-based spaced repetition word learning
+- **Data Sources** - GitHub trending, RSS feeds, Hacker News aggregation with LLM batch tagging
 - **File Management** - MinIO-backed file browser with upload/download
 - **Personal Info** - Family member management (documents, addresses, bank accounts, medical records)
-- **Finance Tracking** - Financial data visualization
-- **Efficiency Evaluator** - Performance metrics and evaluation
+- **Finance Tracking** - Multi-platform financial data with budget tracking and trend analysis
+- **Efficiency Evaluator** - Service evaluation with compliance audits and recommendations
 - **Documentation Center** - Centralized project documentation viewer
 - **Timeline** - Change history and deployment tracking
 - **K8s/Argo Config** - Workflow and deployment configuration viewer
@@ -41,8 +43,8 @@ Docker multi-stage build (Node 20 builder + Nginx Alpine):
 
 ```bash
 # Build and push image
-docker build -t lzjxccode/personal-info-frontend:latest .
-docker push lzjxccode/personal-info-frontend:latest
+docker build -t lzjxccode/foreend-platform:latest .
+docker push lzjxccode/foreend-platform:latest
 ```
 
 K8s deployment via ArgoCD in `apps` namespace. Nginx proxies all API requests to K8s internal services.
@@ -65,6 +67,10 @@ All backend services are accessed via relative paths through Vite dev proxy (loc
 | `/data-fetcher-api` | data-fetcher |
 | `/notification-api` | notification |
 | `/pdf-api` | pdf-service |
+| `/remote-wake-api` | remote-wake-service |
+| `/argo-api` | argo-workflows-server |
+| `/mac-camera-api` | MacBook camera (LAN direct) |
+| `/minio-s3` | MinIO S3 storage |
 
 ## Documentation
 

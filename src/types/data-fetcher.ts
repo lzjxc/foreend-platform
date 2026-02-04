@@ -276,6 +276,61 @@ export interface BatchTagTasksResponse {
   total: number;
 }
 
+// ==================== Financial Types ====================
+
+export interface FinancialPrice {
+  symbol: string;
+  price: string;
+  change_percent: number | null;
+  recorded_at: string;
+}
+
+export interface FinancialSummary {
+  gold: FinancialPrice;
+  gbp_cny: FinancialPrice;
+  usd_cny: FinancialPrice;
+  last_updated: string;
+}
+
+// Legacy type - kept for backward compatibility
+export interface FinancialHistoryPoint {
+  date: string;
+  price: number;
+  change_percent: number | null;
+}
+
+// Legacy type - kept for backward compatibility
+export interface FinancialHistoryResponse {
+  symbol: string;
+  name: string;
+  unit: string;
+  history: FinancialHistoryPoint[];
+  period_days: number;
+  latest: {
+    price: number;
+    change_percent: number | null;
+    recorded_at: string;
+  };
+}
+
+// New Financial Trend API types
+export interface FinancialTrendPrice {
+  date: string;
+  price: number | string;  // API returns string, frontend converts to number
+}
+
+export interface FinancialTrendResponse {
+  symbol: string;
+  current_price: number | string;  // API returns string, frontend converts to number
+  prices: FinancialTrendPrice[];
+  change_1d: number | null;
+  change_7d: number | null;
+  change_30d: number | null;
+  high_7d: string | null;  // API returns string
+  low_7d: string | null;   // API returns string
+  data_points: number;
+}
+
 // ==================== Health Types ====================
 
 export interface DataFetcherHealth {

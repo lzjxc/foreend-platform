@@ -94,6 +94,7 @@ export interface SkillUsageRecord {
   success: boolean;
   error_message: string | null;
   context: Record<string, unknown> | null;
+  parent_usage_id: number | null;  // ID of parent if invoked by another skill
 }
 
 // Usage stats entry
@@ -104,6 +105,8 @@ export interface SkillUsageStat {
   count: number;
   success_count: number;
   avg_duration_ms: number | null;
+  direct_count: number | null;   // Count of direct invocations (no parent)
+  nested_count: number | null;   // Count of nested invocations (has parent)
 }
 
 // Usage stats response

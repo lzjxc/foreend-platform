@@ -7,6 +7,9 @@ import type {
   RoadmapItem,
   EvaluationHistoryItem,
   SystemEvaluationReport,
+  ComplianceTaskDetail,
+  ComplianceTasksResponse,
+  ComplianceCreateResponse,
 } from '@/types/efficiency-evaluator';
 
 // Query keys
@@ -19,6 +22,10 @@ export const efficiencyKeys = {
   roadmap: () => [...efficiencyKeys.all, 'roadmap'] as const,
   summary: () => [...efficiencyKeys.all, 'summary'] as const,
   report: () => [...efficiencyKeys.all, 'report'] as const,
+  // Compliance audit
+  complianceLatest: () => [...efficiencyKeys.all, 'compliance', 'latest'] as const,
+  complianceTasks: () => [...efficiencyKeys.all, 'compliance', 'tasks'] as const,
+  complianceTask: (taskId: string) => [...efficiencyKeys.all, 'compliance', 'task', taskId] as const,
 };
 
 // API response wrapper
@@ -252,6 +259,74 @@ export function useTriggerEvaluation() {
     onSuccess: () => {
       // Invalidate all efficiency queries to refresh data
       queryClient.invalidateQueries({ queryKey: efficiencyKeys.all });
+    },
+  });
+}
+
+// ==================== Compliance Audit Hooks ====================
+
+// Get latest completed compliance audit report
+export function useComplianceLatest() {
+  return useQuery({
+    queryKey: efficiencyKeys.complianceLatest(),
+    queryFn: async () => {
+      const { data } = await efficiencyClient.get<ComplianceTaskDetail>(
+        '/api/v1/compliance/audit/latest'
+      );
+      return data;
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+// List compliance audit tasks
+export function useComplianceTasks() {
+  return useQuery({
+    queryKey: efficiencyKeys.complianceTasks(),
+    queryFn: async () => {
+      const { data } = await efficiencyClient.get<ComplianceTasksResponse>(
+        '/api/v1/compliance/audit/tasks'
+      );
+      return data;
+    },
+    staleTime: 60_000,
+  });
+}
+
+// Poll a specific compliance audit task
+export function useComplianceTask(taskId: string, enabled = true) {
+  return useQuery({
+    queryKey: efficiencyKeys.complianceTask(taskId),
+    queryFn: async () => {
+      const { data } = await efficiencyClient.get<ComplianceTaskDetail>(
+        `/api/v1/compliance/audit/tasks/${taskId}`
+      );
+      return data;
+    },
+    enabled: !!taskId && enabled,
+    refetchInterval: (query) => {
+      const status = query.state.data?.status;
+      if (status === 'pending' || status === 'processing') return 3000;
+      return false;
+    },
+  });
+}
+
+// Trigger a new compliance audit
+export function useTriggerComplianceAudit() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (targetServices?: string[]) => {
+      const body = targetServices ? { target_services: targetServices } : {};
+      const { data } = await efficiencyClient.post<ComplianceCreateResponse>(
+        '/api/v1/compliance/audit',
+        body
+      );
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: efficiencyKeys.complianceTasks() });
     },
   });
 }

@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import {
   Home,
   Activity,
+  Monitor,
   BookOpen,
   BookMarked,
   Users,
@@ -25,6 +26,7 @@ import { Button } from '@/components/ui/button';
 const navItems = [
   { path: '/dashboard', icon: Home, label: '仪表盘' },
   { path: '/system', icon: Activity, label: '系统看板' },
+  { path: '/machines', icon: Monitor, label: '远程设备' },
   // { path: '/services', icon: Server, label: '服务目录' },  // 已合并到系统看板
   { path: '/docs', icon: FileText, label: '文档中心' },
   { path: '/timeline', icon: History, label: '变更时间线' },
