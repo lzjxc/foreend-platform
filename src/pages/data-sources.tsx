@@ -281,18 +281,26 @@ function StatsOverview() {
     pollingEnabled ? 3000 : 0  // Poll every 3 seconds when enabled
   );
 
-  // Get the most recent active task
-  const activeTask = useMemo(() => {
+  // Get the most recent task that the database thinks is running
+  const dbActiveTask = useMemo(() => {
     if (!batchTasksData?.tasks) return null;
     return getMostRecentActiveBatchTag(batchTasksData.tasks);
   }, [batchTasksData]);
 
-  // Get real-time Argo workflow progress for active task
+  // Get real-time Argo workflow progress for the db-active task
   const { data: argoStatus } = useArgoWorkflowProgress(
-    activeTask?.llm_gateway_task_id,
-    !!activeTask,
+    dbActiveTask?.llm_gateway_task_id,
+    !!dbActiveTask,
     5000  // Poll every 5 seconds
   );
+
+  // Determine if the task is truly active (considering Argo terminal states)
+  // If Argo says Failed/Succeeded/Error, the task is no longer active even if DB hasn't caught up
+  const isArgoTerminal = argoStatus?.phase === 'Failed' || argoStatus?.phase === 'Succeeded' || argoStatus?.phase === 'Error';
+  const activeTask = dbActiveTask && !isArgoTerminal ? dbActiveTask : null;
+
+  // The most recent task for display (active or just-finished)
+  const displayTask = dbActiveTask;
 
   // Get recent tasks (last 5)
   const recentTasks = useMemo(() => {
@@ -311,7 +319,21 @@ function StatsOverview() {
     }
   }, [activeTask]);
 
-  // Show toast when task completes
+  // Show toast when task completes (via Argo terminal state or DB status)
+  useEffect(() => {
+    if (dbActiveTask && isArgoTerminal && pollingEnabled) {
+      if (argoStatus?.phase === 'Succeeded') {
+        toast.success(`打标任务完成: ${dbActiveTask.completed_items} 条数据已处理`);
+      } else {
+        toast.error(`打标任务失败: ${argoStatus?.message || dbActiveTask.error_message || '未知错误'}`);
+      }
+      refetchStats();
+      refetchBatchTasks();
+      setPollingEnabled(false);
+    }
+  }, [dbActiveTask, isArgoTerminal, argoStatus, pollingEnabled, refetchStats, refetchBatchTasks]);
+
+  // Also handle DB status changes for completed/failed
   useEffect(() => {
     if (recentTasks.length > 0) {
       const latestTask = recentTasks[0];
@@ -406,13 +428,13 @@ function StatsOverview() {
         </div>
       </div>
 
-      {/* Active Batch Task Status */}
-      {activeTask && (
-        <BatchTaskStatusCard task={activeTask} argoStatus={argoStatus} />
+      {/* Active or just-finished Batch Task Status */}
+      {displayTask && (
+        <BatchTaskStatusCard task={displayTask} argoStatus={argoStatus} />
       )}
 
-      {/* Recent Batch Tasks (collapsed) */}
-      {!activeTask && recentTasks.length > 0 && recentTasks[0].status !== 'pending' && recentTasks[0].status !== 'running' && (
+      {/* Recent Batch Tasks (collapsed) - only show when no displayTask */}
+      {!displayTask && recentTasks.length > 0 && recentTasks[0].status !== 'pending' && recentTasks[0].status !== 'running' && (
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
