@@ -26,7 +26,8 @@
       "Bash(netstat:*)",
       "Bash(istioctl ztunnel-config workload:*)",
       "Bash(taskkill:*)",
-      "Bash(nslookup:*)"
+      "Bash(nslookup:*)",
+      "Skill(doc)"
     ]
   }
 }

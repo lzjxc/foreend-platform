@@ -11,7 +11,7 @@
 - **Data Sources** - GitHub trending, RSS feeds, Hacker News aggregation with LLM batch tagging
 - **File Management** - MinIO-backed file browser with upload/download
 - **Personal Info** - Family member management (documents, addresses, bank accounts, medical records)
-- **Finance Tracking** - Multi-platform financial data with budget tracking and trend analysis
+- **Finance Tracking** - Multi-platform financial data with budget tracking, currency-based stats, and monthly trend charts
 - **Efficiency Evaluator** - Service evaluation with compliance audits and recommendations
 - **Documentation Center** - Centralized project documentation viewer
 - **Timeline** - Change history and deployment tracking

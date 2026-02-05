@@ -1,6 +1,6 @@
 # Personal Info Frontend - Claude Code 开发规范
 
-> 最后更新: 2026-02-01
+> 最后更新: 2026-02-05
 >
 > 本文档为 Claude Code 提供项目开发上下文，确保代码生成符合项目规范。
 
@@ -98,6 +98,9 @@ personal-info-frontend/
 │   │   ├── addresses/           # 地址管理
 │   │   ├── bank-accounts/       # 银行账户
 │   │   ├── medical/             # 医疗信息
+│   │   ├── financial/           # 财务组件
+│   │   │   ├── currency-stats.tsx     # 货币统计 (收支/趋势图)
+│   │   │   └── financial-trends.tsx   # 金融数据趋势 (汇率/金价)
 │   │   └── form-filling/        # 表单填充
 │   │       ├── template-selector.tsx
 │   │       ├── field-mapper.tsx

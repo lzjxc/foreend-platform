@@ -67,18 +67,20 @@ export function SkillUsageStats() {
     app_id: selectedApp ?? undefined,
   });
 
-  // Skill distribution - filtered by selected app (to show which skills this app calls)
+  // Skill distribution - filtered by selected app AND selected date
   const { data: skillData, isLoading: skillLoading } = useSkillUsageStats({
     group_by: 'skill',
     days,
     app_id: selectedApp ?? undefined,
+    date: selectedDate ?? undefined,
   });
 
-  // App distribution - filtered by selected skill (to show which apps call this skill)
+  // App distribution - filtered by selected skill AND selected date
   const { data: appData, isLoading: appLoading } = useSkillUsageStats({
     group_by: 'app',
     days,
     skill_id: selectedSkill ?? undefined,
+    date: selectedDate ?? undefined,
   });
 
   const isLoading = dateLoading || skillLoading || appLoading;
@@ -478,9 +480,12 @@ export function SkillUsageStats() {
               <CardTitle className="text-base flex items-center gap-2">
                 <Activity className="h-4 w-4" />
                 Skill 调用分布
-                {selectedApp && (
+                {(selectedApp || selectedDate) && (
                   <span className="text-xs font-normal text-muted-foreground">
-                    (被 {truncateName(selectedApp, 12)} 调用)
+                    ({[
+                      selectedDate && selectedDateStats?.displayDate,
+                      selectedApp && `被 ${truncateName(selectedApp, 12)} 调用`,
+                    ].filter(Boolean).join(' · ')})
                   </span>
                 )}
               </CardTitle>
@@ -495,9 +500,12 @@ export function SkillUsageStats() {
               <CardTitle className="text-base flex items-center gap-2">
                 <Activity className="h-4 w-4" />
                 Skill 调用分布
-                {selectedApp ? (
+                {(selectedApp || selectedDate) ? (
                   <span className="text-xs font-normal text-muted-foreground">
-                    (被 {truncateName(selectedApp, 12)} 调用)
+                    ({[
+                      selectedDate && selectedDateStats?.displayDate,
+                      selectedApp && `被 ${truncateName(selectedApp, 12)} 调用`,
+                    ].filter(Boolean).join(' · ')})
                   </span>
                 ) : (
                   <span className="text-xs font-normal text-muted-foreground ml-1">
@@ -584,9 +592,12 @@ export function SkillUsageStats() {
               <CardTitle className="text-base flex items-center gap-2">
                 <AppWindow className="h-4 w-4" />
                 应用调用分布
-                {selectedSkill && (
+                {(selectedSkill || selectedDate) && (
                   <span className="text-xs font-normal text-muted-foreground">
-                    (调用 {truncateName(selectedSkill, 12)})
+                    ({[
+                      selectedDate && selectedDateStats?.displayDate,
+                      selectedSkill && `调用 ${truncateName(selectedSkill, 12)}`,
+                    ].filter(Boolean).join(' · ')})
                   </span>
                 )}
               </CardTitle>
@@ -601,9 +612,12 @@ export function SkillUsageStats() {
               <CardTitle className="text-base flex items-center gap-2">
                 <AppWindow className="h-4 w-4" />
                 应用调用分布
-                {selectedSkill ? (
+                {(selectedSkill || selectedDate) ? (
                   <span className="text-xs font-normal text-muted-foreground">
-                    (调用 {truncateName(selectedSkill, 12)})
+                    ({[
+                      selectedDate && selectedDateStats?.displayDate,
+                      selectedSkill && `调用 ${truncateName(selectedSkill, 12)}`,
+                    ].filter(Boolean).join(' · ')})
                   </span>
                 ) : (
                   <span className="text-xs font-normal text-muted-foreground ml-1">

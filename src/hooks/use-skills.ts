@@ -137,6 +137,7 @@ export function useSkillUsageStats(params: {
   days?: number;
   skill_id?: string;
   app_id?: string;
+  date?: string; // Filter by specific date (YYYY-MM-DD format)
 } = {}) {
   return useQuery({
     queryKey: skillKeys.usageStats(params),
@@ -146,6 +147,7 @@ export function useSkillUsageStats(params: {
       if (params.days) queryParams.set('days', String(params.days));
       if (params.skill_id) queryParams.set('skill_id', params.skill_id);
       if (params.app_id) queryParams.set('app_id', params.app_id);
+      if (params.date) queryParams.set('date', params.date);
 
       const { data } = await axios.get<SkillUsageStatsResponse>(
         `${CONFIG_SERVICE_URL}/api/v1/skills/usage/stats`,

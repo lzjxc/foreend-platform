@@ -278,12 +278,13 @@ export function useGameNews(days: number = 7, page: number = 1, pageSize: number
 
 // ==================== Collection Hooks ====================
 
-export function useCollectionStats(days: number = 7) {
+export function useCollectionStats(days?: number) {
   return useQuery({
     queryKey: dataFetcherKeys.collectStats(days),
     queryFn: async () => {
+      const params = days ? `?days=${days}` : '';
       const { data } = await dataFetcherClient.get<CollectionStats>(
-        `/api/v1/collect/stats?days=${days}`
+        `/api/v1/collect/stats${params}`
       );
       return data;
     },
