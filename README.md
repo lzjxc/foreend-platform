@@ -13,7 +13,7 @@
 - **Personal Info** - Family member management (documents, addresses, bank accounts, medical records)
 - **Finance Tracking** - Multi-platform financial data with budget tracking, currency-based stats, and monthly trend charts
 - **Efficiency Evaluator** - Service evaluation with compliance audits and recommendations
-- **Documentation Center** - Centralized project documentation viewer
+- **Documentation Center** - Centralized project documentation viewer, grouped by service layer (infra/shared/apps/game/personal)
 - **Timeline** - Change history and deployment tracking
 - **K8s/Argo Config** - Workflow and deployment configuration viewer
 

@@ -189,29 +189,59 @@ export function FinancialTrends({ showHeader = true, defaultDays = 30 }: Financi
     toast.success('数据已刷新');
   };
 
-  const goldData = useMemo(() => {
-    if (!goldTrend?.prices) return [];
-    return goldTrend.prices.map(p => ({
+  // Helper function to merge trend data with latest summary price
+  const mergeTrendWithSummary = (
+    trendPrices: Array<{ date: string; price: string | number }> | undefined,
+    summaryPrice: string | undefined,
+    summaryRecordedAt: string | undefined
+  ): Array<{ date: string; price: number }> => {
+    if (!trendPrices) return [];
+
+    const data = trendPrices.map(p => ({
       date: p.date,
       price: typeof p.price === 'string' ? parseFloat(p.price) : p.price,
     }));
-  }, [goldTrend]);
+
+    // If we have summary data, check if it's newer than the last trend point
+    if (summaryPrice && summaryRecordedAt) {
+      const summaryDate = new Date(summaryRecordedAt);
+      const lastTrendDate = data.length > 0 ? new Date(data[data.length - 1].date) : new Date(0);
+
+      // If summary date is newer, add it to the data
+      if (summaryDate > lastTrendDate) {
+        data.push({
+          date: summaryRecordedAt,
+          price: parseFloat(summaryPrice),
+        });
+      }
+    }
+
+    return data;
+  };
+
+  const goldData = useMemo(() => {
+    return mergeTrendWithSummary(
+      goldTrend?.prices,
+      summary?.gold?.price,
+      summary?.gold?.recorded_at
+    );
+  }, [goldTrend, summary]);
 
   const gbpData = useMemo(() => {
-    if (!gbpTrend?.prices) return [];
-    return gbpTrend.prices.map(p => ({
-      date: p.date,
-      price: typeof p.price === 'string' ? parseFloat(p.price) : p.price,
-    }));
-  }, [gbpTrend]);
+    return mergeTrendWithSummary(
+      gbpTrend?.prices,
+      summary?.gbp_cny?.price,
+      summary?.gbp_cny?.recorded_at
+    );
+  }, [gbpTrend, summary]);
 
   const usdData = useMemo(() => {
-    if (!usdTrend?.prices) return [];
-    return usdTrend.prices.map(p => ({
-      date: p.date,
-      price: typeof p.price === 'string' ? parseFloat(p.price) : p.price,
-    }));
-  }, [usdTrend]);
+    return mergeTrendWithSummary(
+      usdTrend?.prices,
+      summary?.usd_cny?.price,
+      summary?.usd_cny?.recorded_at
+    );
+  }, [usdTrend, summary]);
 
   return (
     <div className="space-y-6">
@@ -338,8 +368,8 @@ export function FinancialTrends({ showHeader = true, defaultDays = 30 }: Financi
           isLoading={goldLoading}
           unit="$"
           color="#eab308"
-          latestPrice={goldTrend?.current_price ? (typeof goldTrend.current_price === 'string' ? parseFloat(goldTrend.current_price) : goldTrend.current_price) : undefined}
-          changePercent={goldTrend?.change_1d}
+          latestPrice={summary?.gold?.price ? parseFloat(summary.gold.price) : (goldTrend?.current_price ? (typeof goldTrend.current_price === 'string' ? parseFloat(goldTrend.current_price) : goldTrend.current_price) : undefined)}
+          changePercent={summary?.gold?.change_percent ?? goldTrend?.change_1d}
         />
 
         <FinancialTrendChart
@@ -348,8 +378,8 @@ export function FinancialTrends({ showHeader = true, defaultDays = 30 }: Financi
           isLoading={usdLoading}
           unit="¥"
           color="#22c55e"
-          latestPrice={usdTrend?.current_price ? (typeof usdTrend.current_price === 'string' ? parseFloat(usdTrend.current_price) : usdTrend.current_price) : undefined}
-          changePercent={usdTrend?.change_1d}
+          latestPrice={summary?.usd_cny?.price ? parseFloat(summary.usd_cny.price) : (usdTrend?.current_price ? (typeof usdTrend.current_price === 'string' ? parseFloat(usdTrend.current_price) : usdTrend.current_price) : undefined)}
+          changePercent={summary?.usd_cny?.change_percent ?? usdTrend?.change_1d}
         />
 
         <FinancialTrendChart
@@ -358,8 +388,8 @@ export function FinancialTrends({ showHeader = true, defaultDays = 30 }: Financi
           isLoading={gbpLoading}
           unit="¥"
           color="#3b82f6"
-          latestPrice={gbpTrend?.current_price ? (typeof gbpTrend.current_price === 'string' ? parseFloat(gbpTrend.current_price) : gbpTrend.current_price) : undefined}
-          changePercent={gbpTrend?.change_1d}
+          latestPrice={summary?.gbp_cny?.price ? parseFloat(summary.gbp_cny.price) : (gbpTrend?.current_price ? (typeof gbpTrend.current_price === 'string' ? parseFloat(gbpTrend.current_price) : gbpTrend.current_price) : undefined)}
+          changePercent={summary?.gbp_cny?.change_percent ?? gbpTrend?.change_1d}
         />
       </div>
 
