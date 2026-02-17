@@ -209,7 +209,7 @@ function CameraSection() {
   const [previewTs, setPreviewTs] = useState(Date.now());
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
 
-  const { data: cameraStatus, isLoading: cameraLoading, error: cameraError } = useCameraStatus();
+  const { data: cameraStatus, isLoading: cameraLoading, error: cameraError, refetch: refetchCamera, isFetching: cameraFetching } = useCameraStatus();
   const { data: storageStatus } = useCameraStorageStatus();
   const { data: snapshotData, isLoading: snapshotsLoading } = useSnapshotList();
   const takeSnapshotMutation = useTakeSnapshot();
@@ -270,10 +270,21 @@ function CameraSection() {
     return (
       <Card>
         <CardHeader>
-          <div className="flex items-center gap-2">
-            <Camera className="h-5 w-5 text-muted-foreground" />
-            <CardTitle className="text-lg">MacBook 摄像头</CardTitle>
-            <Badge variant="destructive">离线</Badge>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Camera className="h-5 w-5 text-muted-foreground" />
+              <CardTitle className="text-lg">MacBook 摄像头</CardTitle>
+              <Badge variant="destructive">离线</Badge>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => refetchCamera()}
+              disabled={cameraFetching}
+            >
+              {cameraFetching ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+              <span className="ml-1">重试</span>
+            </Button>
           </div>
           <CardDescription>摄像头服务不可达，MacBook 可能未开机</CardDescription>
         </CardHeader>

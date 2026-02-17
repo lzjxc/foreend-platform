@@ -155,7 +155,7 @@ export default defineConfig({
       },
       // Proxy MacBook Camera Service (direct LAN access)
       '/mac-camera-api': {
-        target: 'http://192.168.1.133:8090',
+        target: 'http://192.168.1.136:8090',
         changeOrigin: true,
         rewrite: (p) => p.replace(/^\/mac-camera-api/, ''),
       },
