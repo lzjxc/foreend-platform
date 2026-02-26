@@ -1,10 +1,11 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import {
   FileText,
   Search,
   Filter,
   Eye,
   ChevronRight,
+  ChevronDown,
   Globe,
   Wrench,
   Smartphone,
@@ -16,6 +17,7 @@ import {
   Loader2,
   CheckCircle2,
   AlertCircle,
+  Clock,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -273,6 +275,101 @@ function LayerSection({
   );
 }
 
+// ==================== Recent Updates ====================
+
+const RECENT_PAGE_SIZE = 5;
+
+function RecentUpdates({
+  documents,
+  onDocClick,
+}: {
+  documents: Document[];
+  onDocClick: (doc: Document) => void;
+}) {
+  const [visibleCount, setVisibleCount] = useState(RECENT_PAGE_SIZE);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  const recentDocs = useMemo(() => {
+    return [...documents].sort((a, b) => {
+      const tsA = getDocTimestamp(a) || '';
+      const tsB = getDocTimestamp(b) || '';
+      return tsB.localeCompare(tsA);
+    });
+  }, [documents]);
+
+  const shown = recentDocs.slice(0, visibleCount);
+  const hasMore = visibleCount < recentDocs.length;
+
+  const loadMore = () => {
+    setVisibleCount((prev) => prev + RECENT_PAGE_SIZE);
+    // Scroll to bottom of container after loading more
+    requestAnimationFrame(() => {
+      if (scrollRef.current) {
+        scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+      }
+    });
+  };
+
+  if (documents.length === 0) return null;
+
+  return (
+    <Card>
+      <CardContent className="p-4">
+        <div className="flex items-center gap-2 mb-3">
+          <Clock className="h-4 w-4 text-muted-foreground" />
+          <h3 className="font-semibold text-sm">最近更新</h3>
+          <span className="text-xs text-muted-foreground">
+            (显示 {shown.length}/{recentDocs.length})
+          </span>
+        </div>
+
+        <div
+          ref={scrollRef}
+          className={cn(
+            'space-y-0.5 overflow-y-auto',
+            visibleCount > RECENT_PAGE_SIZE && 'max-h-[320px]'
+          )}
+        >
+          {shown.map((doc) => (
+            <button
+              key={doc.id}
+              className="w-full flex items-center gap-2 text-left px-2 py-1.5 rounded-md hover:bg-accent transition-colors text-sm group"
+              onClick={() => onDocClick(doc)}
+            >
+              <FileText className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+              <span className="flex-1 truncate group-hover:text-foreground">
+                {doc.title}
+              </span>
+              {doc.service_id && (
+                <span className="text-[10px] text-muted-foreground shrink-0">
+                  {doc.service_id}
+                </span>
+              )}
+              <Badge className={cn('text-[10px] px-1.5 py-0 shrink-0', DOC_TYPE_COLORS[doc.doc_type])}>
+                {DOC_TYPE_LABELS[doc.doc_type]}
+              </Badge>
+              <span className="text-[10px] text-muted-foreground shrink-0 tabular-nums w-[70px] text-right">
+                {formatRelativeTime(getDocTimestamp(doc))}
+              </span>
+              <Eye className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+            </button>
+          ))}
+        </div>
+
+        {hasMore && (
+          <button
+            onClick={loadMore}
+            className="w-full mt-2 flex items-center justify-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors py-1.5 rounded-md hover:bg-accent"
+          >
+            <ChevronDown className="h-3.5 w-3.5" />
+            加载更多 ({recentDocs.length - visibleCount} 篇)
+          </button>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 // ==================== Page ====================
 
 export default function DocsPage() {
@@ -463,6 +560,11 @@ export default function DocsPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Recent Updates */}
+      {!isLoading && documents.length > 0 && (
+        <RecentUpdates documents={documents} onDocClick={setSelectedDoc} />
+      )}
 
       {/* Grouped Document List */}
       {isLoading ? (

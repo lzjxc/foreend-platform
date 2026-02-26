@@ -6,16 +6,16 @@
 
 - **System Dashboard** - Service health monitoring, LLM usage stats, architecture diagram, Skill management
 - **Remote Devices** - Wake-on-LAN, shutdown, MacBook camera (snapshot, HLS live stream, MinIO upload)
+- **Documentation Center** - Centralized docs viewer (grouped by service layer), change timeline, K8s/Argo config
+- **Data Sources** - GitHub trending, RSS feeds, Hacker News aggregation with LLM batch tagging, tech doc import
+- **Knowledge Hub** - Knowledge capture (text/URL/file), semantic search, ontology graph, knowledge gaps analysis
+- **Knowledge Review** - Spaced repetition review system, AI-generated learning plans with curriculum
 - **Homework Assistant** - Chinese, Math, English homework with AI-powered grading
 - **Wordbook** - FSRS-based spaced repetition word learning
-- **Data Sources** - GitHub trending, RSS feeds, Hacker News aggregation with LLM batch tagging
-- **File Management** - MinIO-backed file browser with upload/download
-- **Personal Info** - Family member management (documents, addresses, bank accounts, medical records)
 - **Finance Tracking** - Multi-platform financial data with budget tracking, currency-based stats, and monthly trend charts
 - **Efficiency Evaluator** - Service evaluation with compliance audits and recommendations
-- **Documentation Center** - Centralized project documentation viewer, grouped by service layer (infra/shared/apps/game/personal)
-- **Timeline** - Change history and deployment tracking
-- **K8s/Argo Config** - Workflow and deployment configuration viewer
+- **Personal Info** - Family member management (documents, addresses, bank accounts, medical records, form filling)
+- **File Management** - MinIO-backed file browser with upload/download
 
 ## Tech Stack
 
@@ -43,8 +43,8 @@ Docker multi-stage build (Node 20 builder + Nginx Alpine):
 
 ```bash
 # Build and push image
-docker build -t lzjxccode/foreend-platform:latest .
-docker push lzjxccode/foreend-platform:latest
+docker build -t lzjxccode/personal-info-frontend:v1.0.x .
+docker push lzjxccode/personal-info-frontend:v1.0.x
 ```
 
 K8s deployment via ArgoCD in `apps` namespace. Nginx proxies all API requests to K8s internal services.
@@ -69,6 +69,7 @@ All backend services are accessed via relative paths through Vite dev proxy (loc
 | `/pdf-api` | pdf-service |
 | `/remote-wake-api` | remote-wake-service |
 | `/argo-api` | argo-workflows-server |
+| `/knowledge-api` | knowledge-hub |
 | `/mac-camera-api` | MacBook camera (LAN direct) |
 | `/minio-s3` | MinIO S3 storage |
 

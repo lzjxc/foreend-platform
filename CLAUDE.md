@@ -1,6 +1,6 @@
 # Personal Info Frontend - Claude Code 开发规范
 
-> 最后更新: 2026-02-07
+> 最后更新: 2026-02-26
 >
 > 本文档为 Claude Code 提供项目开发上下文，确保代码生成符合项目规范。
 
@@ -8,14 +8,32 @@
 
 ### 1.1 项目定位
 
-统一家庭管理前端平台 - 集成个人信息管理、作业助手、单词本、文件管理、系统监控、财务统计、效能评估等多个功能模块。通过 nginx 反向代理对接多个后端微服务，部署在 K8s 集群中。
+统一家庭管理前端平台 - 集成个人信息管理、作业助手、单词本、知识库与复习系统、文件管理、系统监控、财务统计、效能评估等多个功能模块。通过 nginx 反向代理对接多个后端微服务，部署在 K8s 集群中。
+
+### 1.3 功能模块速览
+
+| 模块 | 路由 | 说明 |
+|------|------|------|
+| 仪表盘 | `/dashboard` | 系统概览、货币统计 |
+| 系统看板 | `/system` | 服务健康、LLM 用量、Skill 管理 |
+| 远程设备 | `/machines` | WoL、关机、MacBook 摄像头 |
+| 文档中心 | `/docs` | 文档查阅(按服务分层)、变更时间线、K8s 配置 |
+| 效能评估 | `/efficiency` | 合规审计、服务评估建议 |
+| 数据源 | `/data-sources` | GitHub/RSS/HN 聚合、LLM 批量标注、技术文档导入 |
+| 财务统计 | `/finance` | 多平台财务数据、预算追踪、趋势图 |
+| 作业助手 | `/homework` | 中文/数学/英语作业、AI 批改 |
+| 单词本 | `/wordbook` | FSRS 间隔复习 |
+| 知识库 | `/knowledge` | 知识采集、搜索、本体图谱、知识缺口分析 |
+| 知识复习 | `/knowledge/review` | 间隔复习队列、学习计划(AI 生成课程) |
+| 家庭成员 | `/members` | 证件/地址/银行账户/医疗记录、表单填充 |
+| 文件管理 | `/files` | MinIO 文件浏览器 |
+| 设置 | `/settings` | 系统设置 |
 
 ### 1.2 技术栈
 
 | 类别 | 技术 | 版本 |
 |------|------|------|
 | **框架** | React | ^18.2.0 |
-| **桌面应用** | Electron | ^28.x |
 | **语言** | TypeScript | ^5.x |
 | **样式** | Tailwind CSS | ^3.x |
 | **UI 组件** | Radix UI | latest |
@@ -42,80 +60,101 @@ personal-info-frontend/
 ├── package.json
 ├── tsconfig.json
 ├── vite.config.ts               # Vite 配置 (React)
-├── electron/                    # Electron 主进程
-│   ├── main.ts
-│   ├── preload.ts
-│   └── electron-env.d.ts
+├── nginx.conf                   # 生产环境 Nginx 反向代理配置
+├── Dockerfile                   # 多阶段构建 (Node 20 + Nginx Alpine)
 ├── src/
 │   ├── main.tsx                 # React 入口
 │   ├── App.tsx                  # 根组件
 │   ├── index.css                # Tailwind 入口
 │   │
 │   ├── api/                     # API 客户端层
-│   │   ├── client.ts            # Axios 实例配置
-│   │   ├── members.ts           # 家庭成员 API
-│   │   ├── documents.ts         # 证件 API
-│   │   ├── addresses.ts         # 地址 API
-│   │   ├── contacts.ts          # 联系方式 API
-│   │   ├── bank-accounts.ts     # 银行账户 API
-│   │   ├── medical.ts           # 医疗信息 API
-│   │   ├── templates.ts         # 表单模板 API
-│   │   └── form-filling.ts      # 表单填充 API
+│   │   ├── client.ts            # Axios 实例 (13 个客户端: apiClient, docClient, knowledgeClient 等)
+│   │   ├── knowledge.ts         # 知识库 API (atoms, capture, review, plans, ontology)
+│   │   ├── file-gateway.ts      # 文件上传 API
+│   │   └── types.ts             # API 通用类型
 │   │
-│   ├── hooks/                   # 自定义 Hooks
-│   │   ├── use-members.ts       # 家庭成员 CRUD hooks
-│   │   ├── use-documents.ts     # 证件管理 hooks
-│   │   ├── use-addresses.ts
-│   │   ├── use-form-filling.ts
-│   │   └── use-auth.ts          # 认证状态
+│   ├── hooks/                   # 自定义 Hooks (37 个)
+│   │   ├── use-knowledge.ts     # 知识库 CRUD (atoms, capture, search, ontology)
+│   │   ├── use-plans.ts         # 学习计划 hooks
+│   │   ├── use-review.ts        # 复习队列 hooks
+│   │   ├── use-doc-service.ts   # 文档服务 hooks
+│   │   ├── use-finance.ts       # 财务数据 hooks
+│   │   ├── use-homework.ts      # 作业 hooks
+│   │   ├── use-grading-queue.ts # AI 批改队列
+│   │   ├── use-data-fetcher.ts  # 数据源 hooks
+│   │   ├── use-wordbook.ts      # 单词本 hooks
+│   │   ├── use-persons.ts       # 家庭成员 CRUD
+│   │   ├── use-documents.ts     # 证件管理
+│   │   └── ...                  # 其余 hooks
 │   │
-│   ├── stores/                  # Zustand 状态
-│   │   ├── auth-store.ts        # 认证状态
-│   │   ├── member-store.ts      # 当前选中成员
-│   │   └── ui-store.ts          # UI 状态 (侧边栏、主题等)
+│   ├── stores/                  # Zustand 状态 (6 个)
+│   │   ├── ui-store.ts          # UI 状态 (侧边栏折叠等)
+│   │   ├── knowledge-store.ts   # 知识库状态
+│   │   ├── batch-queue-store.ts # 批量任务队列
+│   │   ├── grading-queue-store.ts # AI 批改队列
+│   │   └── person-store.ts      # 当前选中成员
 │   │
-│   ├── components/              # UI 组件
-│   │   ├── ui/                  # 基础 UI 组件 (shadcn/ui 风格)
-│   │   │   ├── button.tsx
-│   │   │   ├── input.tsx
-│   │   │   ├── dialog.tsx
-│   │   │   ├── dropdown-menu.tsx
-│   │   │   ├── table.tsx
+│   ├── components/              # UI 组件 (77 个文件)
+│   │   ├── ui/                  # 基础 UI 组件 (shadcn/ui 风格, 14 个)
+│   │   │   ├── button.tsx, input.tsx, dialog.tsx, select.tsx
+│   │   │   ├── card.tsx, badge.tsx, table.tsx, tabs.tsx
+│   │   │   ├── page-tabs.tsx    # 通用页面 tab 导航组件
 │   │   │   └── ...
 │   │   ├── layout/              # 布局组件
-│   │   │   ├── sidebar.tsx
+│   │   │   ├── sidebar.tsx      # 侧边栏 (14 个导航项)
 │   │   │   ├── header.tsx
 │   │   │   └── main-layout.tsx
-│   │   ├── members/             # 家庭成员相关
-│   │   │   ├── member-list.tsx
-│   │   │   ├── member-card.tsx
-│   │   │   ├── member-form.tsx
-│   │   │   └── member-avatar.tsx
-│   │   ├── documents/           # 证件管理
-│   │   │   ├── document-list.tsx
-│   │   │   ├── document-form.tsx
-│   │   │   └── document-card.tsx
-│   │   ├── addresses/           # 地址管理
-│   │   ├── bank-accounts/       # 银行账户
-│   │   ├── medical/             # 医疗信息
+│   │   ├── knowledge/           # 知识库组件 (18 个)
+│   │   │   ├── capture-panel.tsx      # 知识采集面板
+│   │   │   ├── search-panel.tsx       # 知识搜索
+│   │   │   ├── knowledge-graph.tsx    # 本体知识图谱 (@xyflow/react)
+│   │   │   ├── analysis-result.tsx    # 分析结果展示
+│   │   │   ├── ontology-tree.tsx      # 本体树
+│   │   │   ├── plan/                  # 学习计划
+│   │   │   │   ├── plan-create-wizard.tsx
+│   │   │   │   ├── plan-card.tsx
+│   │   │   │   └── plan-draft-review.tsx
+│   │   │   └── review/               # 复习系统
+│   │   │       ├── review-queue.tsx
+│   │   │       ├── review-session.tsx
+│   │   │       ├── review-question.tsx
+│   │   │       └── review-summary.tsx
+│   │   ├── homework/            # 作业助手组件 (11 个)
 │   │   ├── financial/           # 财务组件
 │   │   │   ├── currency-stats.tsx     # 货币统计 (收支/趋势图)
 │   │   │   └── financial-trends.tsx   # 金融数据趋势 (汇率/金价)
-│   │   └── form-filling/        # 表单填充
-│   │       ├── template-selector.tsx
-│   │       ├── field-mapper.tsx
-│   │       └── preview-modal.tsx
+│   │   ├── system/              # 系统看板组件
+│   │   │   ├── skill-usage-stats.tsx  # Skill 用量统计
+│   │   │   └── service-architecture-diagram.tsx
+│   │   ├── members/             # 家庭成员表单
+│   │   ├── wordbook/            # 单词本组件 (6 个)
+│   │   ├── documents/           # 证件管理
+│   │   ├── addresses/           # 地址管理
+│   │   └── bank-accounts/       # 银行账户
 │   │
-│   ├── pages/                   # 页面组件
+│   ├── pages/                   # 页面组件 (34 个)
 │   │   ├── dashboard.tsx        # 仪表盘
-│   │   ├── members/
-│   │   │   ├── index.tsx        # 成员列表
-│   │   │   └── [id].tsx         # 成员详情
-│   │   ├── documents.tsx        # 证件管理
-│   │   ├── addresses.tsx        # 地址管理
-│   │   ├── bank-accounts.tsx    # 银行账户
-│   │   ├── medical.tsx          # 医疗记录
+│   │   ├── system-dashboard.tsx # 系统看板
+│   │   ├── machines.tsx         # 远程设备
+│   │   ├── docs.tsx             # 文档中心 (按服务分层+最近更新)
+│   │   ├── docs-layout.tsx      # 文档 tab 布局 (文档/时间线/K8s)
+│   │   ├── timeline.tsx         # 变更时间线
+│   │   ├── argo-config.tsx      # K8s/Argo 配置
+│   │   ├── efficiency-evaluator.tsx
+│   │   ├── data-sources.tsx     # 数据源 + 技术文档导入
+│   │   ├── finance.tsx          # 财务统计
+│   │   ├── knowledge.tsx        # 知识库主页
+│   │   ├── knowledge-review.tsx # 知识复习 (inline tab: 复习/计划)
+│   │   ├── knowledge-plans.tsx  # 学习计划列表
+│   │   ├── knowledge-plan-detail.tsx # 计划详情
+│   │   ├── members.tsx          # 成员概览
+│   │   ├── members-layout.tsx   # 成员 tab 布局 (成员/表单填充)
+│   │   ├── members/index.tsx    # 成员列表
+│   │   ├── member-detail.tsx    # 成员详情
 │   │   ├── form-filling.tsx     # 表单填充
+│   │   ├── files.tsx            # 文件管理
+│   │   ├── wordbook.tsx         # 单词本
+│   │   ├── homework/            # 作业 (中文/数学/英语/批改)
 │   │   └── settings.tsx         # 设置
 │   │
 │   ├── lib/                     # 工具函数
@@ -123,55 +162,37 @@ personal-info-frontend/
 │   │   ├── constants.ts         # 常量定义
 │   │   └── validators.ts        # Zod schemas
 │   │
-│   └── types/                   # TypeScript 类型
-│       ├── api.ts               # API 响应类型
-│       ├── member.ts            # 成员相关类型
+│   └── types/                   # TypeScript 类型 (20 个)
+│       ├── knowledge.ts         # 知识库类型 (Atom, ReviewAtom, LearningPlan 等)
+│       ├── doc-service.ts       # 文档服务类型 (Document, Timeline, ArgoApp)
+│       ├── homework.ts          # 作业类型
+│       ├── finance.ts           # 财务类型
+│       ├── person.ts            # 成员类型
 │       ├── document.ts          # 证件类型
-│       └── index.ts             # 类型导出
-│
-└── tests/                       # 测试文件
-    ├── setup.ts
-    └── components/
+│       └── ...                  # 其余类型定义
 ```
 
 ## 3. 后端 API 对接
 
 ### 3.1 API 基础配置
 
-后端服务地址（开发环境通过 Tailscale 访问）：
+所有后端服务通过 Nginx 反向代理（生产）或 Vite dev proxy（开发）访问，使用相对路径：
 
 ```typescript
-// src/api/client.ts
-import axios from 'axios';
-
-const API_BASE_URL = import.meta.env.VITE_API_URL 
-  || 'http://personal-info.tail2984bd.ts.net';
-
-export const apiClient = axios.create({
-  baseURL: API_BASE_URL,
-  headers: {
-    'Content-Type': 'application/json',
-    'X-Service-ID': 'personal-info-frontend',  // 必需：权限控制
-  },
-});
-
-// 请求拦截器
-apiClient.interceptors.request.use((config) => {
-  // 可在此添加 token 等
-  return config;
-});
-
-// 响应拦截器
-apiClient.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    // 统一错误处理
-    if (error.response?.status === 403) {
-      // 权限不足
-    }
-    return Promise.reject(error);
-  }
-);
+// src/api/client.ts — 通过 createApiClient() 工厂函数创建 13 个 Axios 实例
+export const apiClient = createApiClient('/personal-api', true);   // 个人信息
+export const docClient = createApiClient('/doc-api');               // 文档服务
+export const knowledgeClient = createApiClient('/knowledge-api', false, 120000); // 知识库 (2min timeout)
+export const homeworkClient = createApiClient('/homework-api');     // 作业
+export const wordbookClient = createApiClient('/wordbook-api');     // 单词本
+export const financeClient = createApiClient('/finance-api');       // 财务
+export const dataFetcherClient = createApiClient('/data-fetcher-api'); // 数据源
+export const fileClient = createApiClient('/file-api');             // 文件网关
+export const llmClient = createApiClient('/llm-gateway-api');       // LLM 网关
+export const efficiencyClient = createApiClient('/efficiency-api'); // 效能评估
+export const remoteWakeClient = createApiClient('/remote-wake-api'); // 远程唤醒
+export const argoClient = createApiClient('/argo-api');             // Argo Workflows
+export const macCameraClient = createApiClient('/mac-camera-api');  // MacBook 摄像头
 ```
 
 ### 3.2 API 端点清单
@@ -193,6 +214,22 @@ apiClient.interceptors.response.use(
 | | `/api/v1/templates/{id}/fill` | POST | 填充表单 |
 | **审计日志** | `/api/v1/audit/logs` | GET | 审计日志 |
 | **健康检查** | `/health` | GET | 服务状态 |
+| **知识库** (via `/knowledge-api`) | `/api/v1/atoms` | GET/POST | 知识原子 CRUD |
+| | `/api/v1/atoms/{id}` | GET/PUT/DELETE | 单个原子操作 |
+| | `/api/v1/capture` | POST | 知识采集 (文本/URL/文件) |
+| | `/api/v1/search` | POST | 语义搜索 |
+| | `/api/v1/ontology` | GET | 本体图谱 |
+| | `/api/v1/review/queue` | GET | 复习队列 (间隔重复) |
+| | `/api/v1/review/answer` | POST | 提交复习答案 |
+| | `/api/v1/plans` | GET/POST | 学习计划 CRUD |
+| | `/api/v1/plans/{id}` | GET/PUT/DELETE | 计划详情/归档/删除 |
+| | `/api/v1/plans/{id}/generate` | POST | AI 生成计划内容 |
+| | `/api/v1/plans/{id}/review-queue` | GET | 计划专属复习队列 |
+| **文档服务** (via `/doc-api`) | `/api/v1/docs` | GET | 文档列表 (分页) |
+| | `/api/v1/docs/{id}/html` | GET | 文档 HTML 渲染 |
+| | `/api/v1/timeline` | GET | 变更时间线 |
+| | `/api/v1/argo-config/apps` | GET | Argo 应用列表 |
+| | `/api/v1/collect/all` | POST | 触发全量文档采集 |
 
 ### 3.3 React Query Hooks 示例
 
@@ -745,74 +782,36 @@ function App() {
 export default App;
 ```
 
-## 8. Electron 配置
+## 8. 路由与导航架构
 
-### 8.1 主进程
+### 8.1 侧边栏导航 (14 项)
 
-```typescript
-// electron/main.ts
-import { app, BrowserWindow, ipcMain } from 'electron';
-import path from 'path';
-import Store from 'electron-store';
-
-const store = new Store();
-
-let mainWindow: BrowserWindow | null = null;
-
-function createWindow() {
-  mainWindow = new BrowserWindow({
-    width: 1200,
-    height: 800,
-    minWidth: 800,
-    minHeight: 600,
-    webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
-      nodeIntegration: false,
-      contextIsolation: true,
-    },
-    titleBarStyle: 'hiddenInset',  // macOS
-  });
-
-  if (process.env.VITE_DEV_SERVER_URL) {
-    mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL);
-    mainWindow.webContents.openDevTools();
-  } else {
-    mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
-  }
-}
-
-app.whenReady().then(createWindow);
-
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    app.quit();
-  }
-});
-
-app.on('activate', () => {
-  if (BrowserWindow.getAllWindows().length === 0) {
-    createWindow();
-  }
-});
-
-// IPC handlers
-ipcMain.handle('store:get', (_, key) => store.get(key));
-ipcMain.handle('store:set', (_, key, value) => store.set(key, value));
+```
+仪表盘 / 系统看板 / 远程设备 / 文档中心 / 效能评估 / 数据源 / 财务统计 /
+作业助手 / 单词本 / 知识库 / 知识复习 / 家庭成员 / 文件管理 / 设置
 ```
 
-### 8.2 Preload 脚本
+### 8.2 Tab 导航整合
 
-```typescript
-// electron/preload.ts
-import { contextBridge, ipcRenderer } from 'electron';
+相关功能通过 `PageTabs` 组件合并到父页面内：
 
-contextBridge.exposeInMainWorld('electronAPI', {
-  store: {
-    get: (key: string) => ipcRenderer.invoke('store:get', key),
-    set: (key: string, value: any) => ipcRenderer.invoke('store:set', key, value),
-  },
-});
-```
+| 父页面 | Tab 子页面 | 路由模式 |
+|--------|-----------|---------|
+| 文档中心 `/docs` | 文档 / 变更时间线 / K8s配置 | 嵌套路由 + `DocsLayout` |
+| 家庭成员 `/members` | 家庭成员 / 表单填充 | 嵌套路由 + `MembersLayout` |
+| 知识复习 `/knowledge/review` | 知识复习 / 学习计划 | 扁平路由 + 内联 PageTabs |
+
+知识复习使用内联 PageTabs（非 Layout wrapper）是因为复习进行中需要隐藏 tab 实现沉浸模式。
+
+### 8.3 旧路由重定向
+
+| 旧路径 | 新路径 |
+|--------|--------|
+| `/timeline` | `/docs/timeline` |
+| `/argo-config` | `/docs/argo-config` |
+| `/form-filling` | `/members/form-filling` |
+| `/knowledge/plans` | `/knowledge/review/plans` |
+| `/knowledge/plans/:planId` | `/knowledge/review/plans/:planId` |
 
 ## 9. 工具函数
 
