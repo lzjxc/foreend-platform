@@ -25,6 +25,9 @@ import {
   XCircle,
   AlertCircle,
   Coins,
+  X,
+  ListTodo,
+  Trash2,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -63,6 +66,7 @@ import {
 } from '@/hooks/use-data-fetcher';
 import type { NewsFilters, DataSource, NewsItem, BatchTagTask } from '@/types/data-fetcher';
 import { FinancialTrends } from '@/components/financial/financial-trends';
+import { useBatchQueueStore, type BatchQueueItem } from '@/stores/batch-queue-store';
 
 // Date filter options for news queries
 const DATE_OPTIONS = [
@@ -96,8 +100,21 @@ function stripHtml(html: string | null | undefined): string {
 function sanitizeHtml(html: string | null | undefined): string {
   if (!html) return '';
 
+  // If content looks like plain text (no HTML block tags), convert newlines to paragraphs
+  const hasBlockTags = /<(p|div|h[1-6]|ul|ol|li|blockquote|pre|table|section)\b/i.test(html);
+  let processed = html;
+  if (!hasBlockTags) {
+    // Split by double newlines (paragraph breaks) and wrap in <p> tags
+    processed = html
+      .split(/\n{2,}/)
+      .map((para) => para.trim())
+      .filter(Boolean)
+      .map((para) => `<p>${para.replace(/\n/g, '<br/>')}</p>`)
+      .join('');
+  }
+
   // Configure DOMPurify to allow safe tags
-  const clean = DOMPurify.sanitize(html, {
+  const clean = DOMPurify.sanitize(processed, {
     ALLOWED_TAGS: ['p', 'br', 'strong', 'b', 'em', 'i', 'u', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
                    'ul', 'ol', 'li', 'blockquote', 'code', 'pre', 'a', 'span', 'div', 'section',
                    'hr', 'table', 'thead', 'tbody', 'tr', 'th', 'td'],
@@ -105,7 +122,11 @@ function sanitizeHtml(html: string | null | undefined): string {
     ALLOW_DATA_ATTR: false,
   });
 
-  return clean;
+  // Wrap any leading bare text nodes into <p> tags
+  // (some articles start with raw text before the first <p>)
+  const wrapped = clean.replace(/^([^<]+?)(<p\b)/i, '<p>$1</p>$2');
+
+  return wrapped;
 }
 
 // ==================== Batch Task Status Component ====================
@@ -257,6 +278,143 @@ function BatchTaskStatusCard({ task, argoStatus }: BatchTaskStatusCardProps) {
   );
 }
 
+// ==================== Batch Queue Types ====================
+
+// ==================== Batch Queue Card ====================
+
+function BatchQueueCard({
+  queue,
+  onRemove,
+  onClearCompleted,
+  onCancelAll,
+}: {
+  queue: BatchQueueItem[];
+  onRemove: (id: string) => void;
+  onClearCompleted: () => void;
+  onCancelAll: () => void;
+}) {
+  const pendingCount = queue.filter((q) => q.status === 'pending').length;
+  const completedCount = queue.filter((q) => q.status === 'completed').length;
+  const failedCount = queue.filter((q) => q.status === 'failed').length;
+  const cancelledCount = queue.filter((q) => q.status === 'cancelled').length;
+  const totalBatches = queue.length;
+
+  const overallProgress = totalBatches > 0
+    ? Math.round(((completedCount + failedCount + cancelledCount) / totalBatches) * 100)
+    : 0;
+
+  return (
+    <Card className="border-blue-200 bg-blue-50/30">
+      <CardContent className="p-4">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <ListTodo className="h-5 w-5 text-blue-600" />
+            <span className="font-medium">批量打标队列</span>
+            <Badge variant="outline" className="text-xs">
+              {completedCount}/{totalBatches} 批
+            </Badge>
+          </div>
+          <div className="flex items-center gap-1">
+            {completedCount > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 text-xs text-muted-foreground"
+                onClick={onClearCompleted}
+              >
+                清除已完成
+              </Button>
+            )}
+            {pendingCount > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 text-xs text-red-600 hover:text-red-700 hover:bg-red-50"
+                onClick={onCancelAll}
+              >
+                <X className="h-3 w-3 mr-1" />
+                取消全部
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {/* Overall progress */}
+        <div className="mb-3">
+          <div className="flex justify-between text-sm text-muted-foreground mb-1">
+            <span>
+              总进度: {completedCount} 完成
+              {failedCount > 0 && `, ${failedCount} 失败`}
+              {cancelledCount > 0 && `, ${cancelledCount} 已取消`}
+              {pendingCount > 0 && `, ${pendingCount} 待执行`}
+            </span>
+            <span>{overallProgress}%</span>
+          </div>
+          <div className="h-2 bg-muted rounded-full overflow-hidden">
+            <div
+              className="h-full bg-blue-500 transition-all duration-300"
+              style={{ width: `${overallProgress}%` }}
+            />
+          </div>
+        </div>
+
+        {/* Queue items */}
+        <div className="space-y-1 max-h-[200px] overflow-y-auto">
+          {queue.map((item) => (
+            <div
+              key={item.id}
+              className={`flex items-center justify-between px-2 py-1.5 rounded text-sm ${
+                item.status === 'running'
+                  ? 'bg-blue-100'
+                  : item.status === 'completed'
+                    ? 'bg-green-50 text-green-700'
+                    : item.status === 'failed'
+                      ? 'bg-red-50 text-red-700'
+                      : item.status === 'cancelled'
+                        ? 'bg-gray-50 text-gray-400 line-through'
+                        : 'bg-white'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                {item.status === 'running' ? (
+                  <Loader2 className="h-3.5 w-3.5 text-blue-500 animate-spin" />
+                ) : item.status === 'completed' ? (
+                  <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+                ) : item.status === 'failed' ? (
+                  <XCircle className="h-3.5 w-3.5 text-red-500" />
+                ) : item.status === 'cancelled' ? (
+                  <X className="h-3.5 w-3.5 text-gray-400" />
+                ) : (
+                  <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+                )}
+                <span>
+                  批次 {item.batchNum} (100条)
+                  {item.itemsProcessed !== undefined && (
+                    <span className="text-xs text-muted-foreground ml-1">
+                      — 实际 {item.itemsProcessed} 条
+                    </span>
+                  )}
+                </span>
+              </div>
+              {item.status === 'pending' && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 w-6 p-0 text-muted-foreground hover:text-red-500"
+                  onClick={() => onRemove(item.id)}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              )}
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 // ==================== Stats Overview Tab ====================
 
 const STATS_PERIOD_OPTIONS = [
@@ -273,6 +431,26 @@ function StatsOverview() {
   const { data: topicStats } = useTopicStats();
   const collectDaily = useCollectDaily();
   const submitBatchTag = useSubmitBatchTag();
+
+  // Batch queue state (persisted in sessionStorage via Zustand)
+  const BATCH_SIZE = 100;
+  const batchQueue = useBatchQueueStore((s) => s.queue);
+  const lastCompletedId = useBatchQueueStore((s) => s.lastCompletedId);
+  const queueActions = useBatchQueueStore((s) => ({
+    setQueue: s.setQueue,
+    markRunning: s.markRunning,
+    markCompleted: s.markCompleted,
+    markFailedAndCancelRemaining: s.markFailedAndCancelRemaining,
+    completeAndCancelRemaining: s.completeAndCancelRemaining,
+    updateItem: s.updateItem,
+    cancelItem: s.cancelItem,
+    cancelAll: s.cancelAll,
+    clearFinished: s.clearFinished,
+    clearAll: s.clearAll,
+    setLastCompletedId: s.setLastCompletedId,
+  }));
+  const isQueueRunning = batchQueue.some((q) => q.status === 'running');
+  const hasQueuePending = batchQueue.some((q) => q.status === 'pending');
 
   // Batch task status - poll when there's an active task
   const [pollingEnabled, setPollingEnabled] = useState(false);
@@ -311,32 +489,78 @@ function StatsOverview() {
       .slice(0, 5);
   }, [batchTasksData]);
 
-  // Enable/disable polling based on active task
+  // Enable/disable polling based on active task or queue
   useEffect(() => {
-    if (activeTask) {
+    if (activeTask || isQueueRunning) {
       setPollingEnabled(true);
-    } else {
+    } else if (!hasQueuePending) {
       setPollingEnabled(false);
     }
-  }, [activeTask]);
+  }, [activeTask, isQueueRunning, hasQueuePending]);
 
-  // Show toast when task completes (via Argo terminal state or DB status)
+  // Submit the next pending batch in the queue
+  const submitNextBatch = useCallback(async () => {
+    const nextPending = batchQueue.find((q) => q.status === 'pending');
+    if (!nextPending) return;
+
+    // Mark as running
+    queueActions.markRunning(nextPending.id);
+
+    try {
+      const result = await submitBatchTag.mutateAsync({
+        source_type: 'mixed',
+        limit: BATCH_SIZE,
+        force_retag: false,
+      });
+      if (result.status === 'submitted' && result.items_count > 0) {
+        queueActions.updateItem(nextPending.id, {
+          backendTaskId: result.task_id,
+          itemsProcessed: result.items_count,
+        });
+        setPollingEnabled(true);
+        setTimeout(() => refetchBatchTasks(), 1000);
+      } else {
+        // No items left to tag — mark this and all remaining as completed
+        queueActions.completeAndCancelRemaining(nextPending.id, 0);
+        toast.info('没有更多待打标数据，队列已完成');
+        refetchStats();
+      }
+    } catch {
+      // Failed — mark this as failed AND cancel all remaining pending batches
+      queueActions.markFailedAndCancelRemaining(nextPending.id, '提交失败');
+      toast.error(`批次 ${nextPending.batchNum} 提交失败，已暂停队列`);
+    }
+  }, [batchQueue, queueActions, submitBatchTag, refetchBatchTasks, refetchStats]);
+
+  // When a task completes (Argo terminal), update queue and trigger next
   useEffect(() => {
     if (dbActiveTask && isArgoTerminal && pollingEnabled) {
+      const currentRunning = batchQueue.find((q) => q.status === 'running');
+
       if (argoStatus?.phase === 'Succeeded') {
         toast.success(`打标任务完成: ${dbActiveTask.completed_items} 条数据已处理`);
+        if (currentRunning && currentRunning.id !== lastCompletedId) {
+          queueActions.setLastCompletedId(currentRunning.id);
+          queueActions.markCompleted(currentRunning.id, dbActiveTask.completed_items);
+        }
       } else {
-        toast.error(`打标任务失败: ${argoStatus?.message || dbActiveTask.error_message || '未知错误'}`);
+        toast.error(`打标任务失败: ${argoStatus?.message || dbActiveTask.error_message || '未知错误'}，已暂停队列`);
+        if (currentRunning && currentRunning.id !== lastCompletedId) {
+          queueActions.setLastCompletedId(currentRunning.id);
+          queueActions.markFailedAndCancelRemaining(
+            currentRunning.id,
+            argoStatus?.message || '未知错误'
+          );
+        }
       }
       refetchStats();
       refetchBatchTasks();
-      setPollingEnabled(false);
     }
-  }, [dbActiveTask, isArgoTerminal, argoStatus, pollingEnabled, refetchStats, refetchBatchTasks]);
+  }, [dbActiveTask, isArgoTerminal, argoStatus, pollingEnabled, batchQueue, lastCompletedId, queueActions, refetchStats, refetchBatchTasks]);
 
-  // Also handle DB status changes for completed/failed
+  // Also handle DB status changes for completed/failed (non-queue single tasks)
   useEffect(() => {
-    if (recentTasks.length > 0) {
+    if (recentTasks.length > 0 && batchQueue.length === 0) {
       const latestTask = recentTasks[0];
       if (latestTask.status === 'completed' && pollingEnabled) {
         toast.success(`打标任务完成: ${latestTask.completed_items} 条数据已处理`);
@@ -347,7 +571,18 @@ function StatsOverview() {
         setPollingEnabled(false);
       }
     }
-  }, [recentTasks, pollingEnabled, refetchStats]);
+  }, [recentTasks, pollingEnabled, refetchStats, batchQueue.length]);
+
+  // Auto-trigger next batch when current one completes
+  useEffect(() => {
+    const hasRunning = batchQueue.some((q) => q.status === 'running');
+    const hasPending = batchQueue.some((q) => q.status === 'pending');
+    if (!hasRunning && hasPending && !activeTask) {
+      // Small delay to avoid race conditions with Argo status updates
+      const timer = setTimeout(() => submitNextBatch(), 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [batchQueue, activeTask, submitNextBatch]);
 
   const handleCollect = async () => {
     try {
@@ -368,31 +603,71 @@ function StatsOverview() {
   };
 
   const handleBatchTag = async () => {
-    if (activeTask) {
+    if (activeTask || isQueueRunning) {
       toast.warning('已有打标任务在处理中，请等待完成后再试');
       return;
     }
-    try {
-      const result = await submitBatchTag.mutateAsync({
-        source_type: 'mixed',
-        limit: 100,  // Process up to 100 items per batch
-        force_retag: false,
-      });
-      if (result.status === 'submitted' && result.items_count > 0) {
-        toast.success(`已提交 ${result.items_count} 条数据进行打标 (任务ID: ${result.task_id?.slice(0, 8)}...)`);
-        setPollingEnabled(true);
-        // Refresh batch tasks to pick up the new task
-        setTimeout(() => refetchBatchTasks(), 1000);
-      } else if (result.status === 'no_items') {
-        toast.info('没有待打标的数据');
-      } else {
-        toast.info(result.message);
+
+    const totalBatches = Math.ceil(untaggedCount / BATCH_SIZE);
+
+    if (totalBatches <= 1) {
+      // Single batch — use original simple flow
+      try {
+        const result = await submitBatchTag.mutateAsync({
+          source_type: 'mixed',
+          limit: BATCH_SIZE,
+          force_retag: false,
+        });
+        if (result.status === 'submitted' && result.items_count > 0) {
+          toast.success(`已提交 ${result.items_count} 条数据进行打标`);
+          setPollingEnabled(true);
+          setTimeout(() => refetchBatchTasks(), 1000);
+        } else if (result.status === 'no_items') {
+          toast.info('没有待打标的数据');
+        } else {
+          toast.info(result.message);
+        }
+        refetchStats();
+      } catch {
+        toast.error('打标任务提交失败');
       }
-      refetchStats();
-    } catch {
-      toast.error('打标任务提交失败');
+      return;
     }
+
+    // Multiple batches — create queue
+    const queue: BatchQueueItem[] = Array.from({ length: totalBatches }, (_, i) => ({
+      id: `batch-${Date.now()}-${i}`,
+      batchNum: i + 1,
+      status: 'pending' as const,
+    }));
+
+    queueActions.setQueue(queue);
+    toast.info(`已创建 ${totalBatches} 个打标批次 (共 ${untaggedCount} 条)，即将开始...`);
   };
+
+  const handleRemoveQueueItem = (id: string) => {
+    queueActions.cancelItem(id);
+  };
+
+  const handleClearCompleted = () => {
+    queueActions.clearFinished();
+  };
+
+  const handleCancelAll = () => {
+    queueActions.cancelAll();
+    toast.info('已取消所有待执行批次');
+  };
+
+  // Clean up empty queue
+  useEffect(() => {
+    if (batchQueue.length > 0 && batchQueue.every((q) => q.status === 'completed' || q.status === 'failed' || q.status === 'cancelled')) {
+      const completedCount = batchQueue.filter((q) => q.status === 'completed').length;
+      const totalProcessed = batchQueue.reduce((sum, q) => sum + (q.itemsProcessed || 0), 0);
+      if (completedCount > 0) {
+        toast.success(`批量打标完成: ${completedCount} 批, 共处理 ${totalProcessed} 条数据`);
+      }
+    }
+  }, [batchQueue]);
 
   const untaggedCount = (stats?.news_items.untagged || 0) + (stats?.github_projects.untagged || 0);
 
@@ -430,17 +705,33 @@ function StatsOverview() {
             size="sm"
             variant="secondary"
             onClick={handleBatchTag}
-            disabled={submitBatchTag.isPending || !!activeTask || untaggedCount === 0}
+            disabled={submitBatchTag.isPending || !!activeTask || isQueueRunning || untaggedCount === 0}
           >
-            {activeTask ? (
+            {activeTask || isQueueRunning ? (
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
             ) : (
               <Tag className="h-4 w-4 mr-2" />
             )}
-            {submitBatchTag.isPending ? '提交中...' : activeTask ? '处理中...' : `立即打标 (${untaggedCount})`}
+            {submitBatchTag.isPending
+              ? '提交中...'
+              : activeTask || isQueueRunning
+                ? '处理中...'
+                : untaggedCount > BATCH_SIZE
+                  ? `全部打标 (${untaggedCount} 条, ${Math.ceil(untaggedCount / BATCH_SIZE)} 批)`
+                  : `立即打标 (${untaggedCount})`}
           </Button>
         </div>
       </div>
+
+      {/* Batch Queue */}
+      {batchQueue.length > 0 && (
+        <BatchQueueCard
+          queue={batchQueue}
+          onRemove={handleRemoveQueueItem}
+          onClearCompleted={handleClearCompleted}
+          onCancelAll={handleCancelAll}
+        />
+      )}
 
       {/* Active or just-finished Batch Task Status */}
       {displayTask && (
@@ -653,7 +944,6 @@ function NewsDetailDialog({
               <div
                 className="prose prose-sm dark:prose-invert max-w-none
                   prose-headings:font-semibold prose-headings:text-foreground
-                  prose-p:text-foreground prose-p:leading-relaxed prose-p:my-3
                   prose-a:text-primary prose-a:no-underline hover:prose-a:underline
                   prose-strong:text-foreground prose-em:text-foreground
                   prose-blockquote:border-l-primary prose-blockquote:text-muted-foreground
@@ -661,7 +951,9 @@ function NewsDetailDialog({
                   prose-pre:bg-muted prose-pre:text-foreground
                   prose-hr:border-border
                   [&>*:first-child]:mt-0 [&>*:last-child]:mb-0
-                  [&_img]:hidden [&_section]:block [&_div]:block"
+                  [&_img]:hidden [&_section]:block [&_div]:block
+                  [&_p]:text-foreground [&_p]:leading-relaxed [&_p]:mb-5 [&_p]:mt-0
+                  [&_p:empty]:h-3 [&_p:empty]:mb-0"
                 dangerouslySetInnerHTML={{
                   __html: sanitizeHtml(item.summary),
                 }}

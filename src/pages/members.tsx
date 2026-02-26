@@ -286,7 +286,7 @@ export default function Members() {
                 <FileText className="h-4 w-4" />
                 添加证件
               </Button>
-              <Link to="/form-filling" className="w-full">
+              <Link to="/members/form-filling" className="w-full">
                 <Button variant="outline" className="w-full justify-start gap-2">
                   <FileText className="h-4 w-4" />
                   填写表单

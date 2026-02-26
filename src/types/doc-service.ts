@@ -2,8 +2,8 @@
 
 // ==================== Documents ====================
 
-export type DocType = 'claude_md' | 'api_doc' | 'system_doc' | 'tutorial' | 'other';
-export type DocCategory = 'development' | 'deployment' | 'operations' | 'architecture' | 'general';
+export type DocType = 'claude_md' | 'readme' | 'api_doc' | 'architecture' | 'error_log' | 'system_doc' | 'tutorial' | 'other';
+export type DocCategory = 'system' | 'service' | 'development' | 'deployment' | 'operations' | 'architecture' | 'general';
 
 export interface Document {
   id: number;
@@ -14,6 +14,13 @@ export interface Document {
   service_id?: string;
   tags: string[];
   version: string;
+  source_type?: string;
+  source_repo?: string;
+  file_path?: string;
+  author?: string;
+  commit_history?: { sha: string; date: string; message: string; author: string }[];
+  source_updated_at?: string;
+  collected_at?: string;
   created_at: string;
   updated_at?: string;
 }

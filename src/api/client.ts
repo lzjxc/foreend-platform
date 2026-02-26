@@ -24,7 +24,7 @@ interface ApiErrorResponse {
 }
 
 // Create axios instance with default config
-function createApiClient(baseURL: string, useToken: boolean = false): AxiosInstance {
+function createApiClient(baseURL: string, useToken: boolean = false, timeout: number = 30000): AxiosInstance {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     'X-Service-ID': SERVICE_ID,
@@ -37,7 +37,7 @@ function createApiClient(baseURL: string, useToken: boolean = false): AxiosInsta
 
   const client = axios.create({
     baseURL,
-    timeout: 30000,
+    timeout,
     headers,
   });
 
@@ -147,6 +147,10 @@ export const argoClient = createApiClient(ARGO_API_URL);
 // MacBook Camera Service API client - direct LAN proxy
 const MAC_CAMERA_URL = '/mac-camera-api';  // Both dev (Vite) and prod (nginx)
 export const macCameraClient = createApiClient(MAC_CAMERA_URL);
+
+// Knowledge Hub API client - use proxy (longer timeout for AI analysis)
+const KNOWLEDGE_API_URL = '/knowledge-api';  // Both dev (Vite) and prod (nginx)
+export const knowledgeClient = createApiClient(KNOWLEDGE_API_URL, false, 120000);
 
 // Helper function to handle API responses
 export async function handleApiResponse<T>(promise: Promise<{ data: T }>): Promise<T> {

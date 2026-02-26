@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useParams } from 'react-router-dom';
 import { MainLayout } from '@/components/layout/main-layout';
 
 // Pages
@@ -20,9 +20,20 @@ import ServiceCatalog from '@/pages/service-catalog';
 import DataSources from '@/pages/data-sources';
 import EfficiencyEvaluator from '@/pages/efficiency-evaluator';
 import DocsPage from '@/pages/docs';
+import DocsLayout from '@/pages/docs-layout';
 import TimelinePage from '@/pages/timeline';
 import ArgoConfigPage from '@/pages/argo-config';
 import MachinesPage from '@/pages/machines';
+import KnowledgePage from '@/pages/knowledge';
+import KnowledgeReviewPage from '@/pages/knowledge-review';
+import KnowledgePlansPage from '@/pages/knowledge-plans';
+import KnowledgePlanDetailPage from '@/pages/knowledge-plan-detail';
+import MembersLayout from '@/pages/members-layout';
+
+function PlanDetailRedirect() {
+  const { planId } = useParams();
+  return <Navigate to={`/knowledge/review/plans/${planId}`} replace />;
+}
 
 function App() {
   return (
@@ -34,25 +45,47 @@ function App() {
         <Route path="services" element={<ServiceCatalog />} />
         <Route path="efficiency" element={<EfficiencyEvaluator />} />
         <Route path="data-sources" element={<DataSources />} />
-        <Route path="docs" element={<DocsPage />} />
-        <Route path="timeline" element={<TimelinePage />} />
-        <Route path="argo-config" element={<ArgoConfigPage />} />
+
+        {/* Docs — tabs: 文档 / 变更时间线 / K8s配置 */}
+        <Route path="docs" element={<DocsLayout />}>
+          <Route index element={<DocsPage />} />
+          <Route path="timeline" element={<TimelinePage />} />
+          <Route path="argo-config" element={<ArgoConfigPage />} />
+        </Route>
+
         <Route path="homework" element={<HomeworkPage />} />
         <Route path="homework/chinese" element={<ChinesePage />} />
         <Route path="homework/math" element={<MathPage />} />
         <Route path="homework/english" element={<EnglishPage />} />
         <Route path="homework/grading" element={<GradingPage />} />
         <Route path="wordbook" element={<WordbookPage />} />
-        <Route path="members" element={<MemberList />} />
+        <Route path="knowledge" element={<KnowledgePage />} />
+
+        {/* Knowledge Review — tabs rendered inline by each page */}
+        <Route path="knowledge/review" element={<KnowledgeReviewPage />} />
+        <Route path="knowledge/review/plans" element={<KnowledgePlansPage />} />
+        <Route path="knowledge/review/plans/:planId" element={<KnowledgePlanDetailPage />} />
+
+        {/* Members — tabs: 家庭成员 / 表单填充 */}
+        <Route path="members" element={<MembersLayout />}>
+          <Route index element={<MemberList />} />
+          <Route path="form-filling" element={<FormFilling />} />
+        </Route>
         <Route path="members/:id" element={<MemberDetail />} />
-        {/* Redirects for removed standalone pages */}
+
+        {/* Redirects for old routes */}
         <Route path="documents" element={<Navigate to="/members" replace />} />
         <Route path="addresses" element={<Navigate to="/members" replace />} />
         <Route path="bank-accounts" element={<Navigate to="/members" replace />} />
         <Route path="ai-news" element={<Navigate to="/dashboard" replace />} />
+        <Route path="timeline" element={<Navigate to="/docs/timeline" replace />} />
+        <Route path="argo-config" element={<Navigate to="/docs/argo-config" replace />} />
+        <Route path="form-filling" element={<Navigate to="/members/form-filling" replace />} />
+        <Route path="knowledge/plans" element={<Navigate to="/knowledge/review/plans" replace />} />
+        <Route path="knowledge/plans/:planId" element={<PlanDetailRedirect />} />
+
         <Route path="machines" element={<MachinesPage />} />
         <Route path="files" element={<Files />} />
-        <Route path="form-filling" element={<FormFilling />} />
         <Route path="finance" element={<Finance />} />
         <Route path="settings" element={<Settings />} />
       </Route>

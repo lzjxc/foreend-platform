@@ -12,7 +12,7 @@ const pageTitles: Record<string, string> = {
   '/bank-accounts': '银行账户',
   '/medical': '医疗信息',
   '/files': '文件管理',
-  '/form-filling': '表单填充',
+  '/members/form-filling': '表单填充',
   '/settings': '设置',
 };
 

@@ -273,6 +273,59 @@ export function useArgoGitPush() {
   });
 }
 
+// ==================== Collection Hooks ====================
+
+export interface CollectStatus {
+  running: boolean;
+  log_id?: number;
+  status?: string;
+  current_step?: string;
+  current_step_num?: number;
+  total_steps?: number;
+  progress?: number;
+  documents_created?: number;
+  documents_updated?: number;
+  commits_collected?: number;
+  errors_count?: number;
+  started_at?: string;
+  completed_at?: string;
+  duration_seconds?: number;
+}
+
+export function useCollectStatus(enabled: boolean) {
+  return useQuery({
+    queryKey: [...docKeys.all, 'collect-status'],
+    queryFn: async () => {
+      const { data } = await docClient.get<CollectStatus>('/api/v1/collect/status');
+      return data;
+    },
+    enabled,
+    refetchInterval: (query) => {
+      return query.state.data?.running ? 2000 : false;
+    },
+  });
+}
+
+export function useCollectAll() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async () => {
+      const { data } = await docClient.post('/api/v1/collect/all');
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [...docKeys.all, 'collect-status'] });
+    },
+    onSettled: () => {
+      // Refresh docs list after collection completes
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: docKeys.lists() });
+      }, 3000);
+    },
+  });
+}
+
 // ==================== Search Hooks ====================
 
 export function useSearch(params: SearchParams) {

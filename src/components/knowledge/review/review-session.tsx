@@ -1,0 +1,301 @@
+import { useState, useCallback } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { useGenerateCard, useSubmitAnswer } from '@/hooks/use-review';
+import { ReviewQuestion } from './review-question';
+import { ReviewFeedback } from './review-feedback';
+import type { ReviewResult } from './review-summary';
+import type { ReviewAtom, ReviewCard, ReviewFeedback as ReviewFeedbackType, SelfRating } from '@/types/knowledge';
+
+type SessionStep = 'loading' | 'question' | 'submitting' | 'feedback' | 'next';
+
+// localStorage helpers for plan progress
+const PROGRESS_KEY_PREFIX = 'review-progress-';
+
+export function getPlanProgress(planId: string): string[] {
+  try {
+    const raw = localStorage.getItem(PROGRESS_KEY_PREFIX + planId);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function clearPlanProgress(planId: string) {
+  localStorage.removeItem(PROGRESS_KEY_PREFIX + planId);
+}
+
+function savePlanProgress(planId: string, atomId: string) {
+  const existing = getPlanProgress(planId);
+  if (!existing.includes(atomId)) {
+    existing.push(atomId);
+    localStorage.setItem(PROGRESS_KEY_PREFIX + planId, JSON.stringify(existing));
+  }
+}
+
+interface ReviewSessionProps {
+  atoms: ReviewAtom[];
+  planId?: string;
+  onFinish: (results: ReviewResult[]) => void;
+  onExit: () => void;
+}
+
+export function ReviewSession({ atoms, planId, onFinish, onExit }: ReviewSessionProps) {
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [step, setStep] = useState<SessionStep>('loading');
+  const [currentCard, setCurrentCard] = useState<ReviewCard | null>(null);
+  const [currentFeedback, setCurrentFeedback] = useState<ReviewFeedbackType | null>(null);
+  const [currentAnswer, setCurrentAnswer] = useState('');
+  const [results, setResults] = useState<ReviewResult[]>([]);
+  const [streak, setStreak] = useState(0);
+  const [error, setError] = useState<string | null>(null);
+
+  const generateCard = useGenerateCard();
+  const submitAnswer = useSubmitAnswer();
+
+  const currentAtom = atoms[currentIndex];
+  const total = atoms.length;
+
+  // Generate card for current atom
+  const loadCard = useCallback(
+    async (atom: ReviewAtom) => {
+      setStep('loading');
+      setCurrentCard(null);
+      setCurrentFeedback(null);
+      setCurrentAnswer('');
+      setError(null);
+
+      try {
+        const card = await generateCard.mutateAsync(atom.atom_id);
+        setCurrentCard(card);
+        setStep('question');
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'AI 出题失败');
+        setStep('question'); // Show error in question area
+      }
+    },
+    [generateCard]
+  );
+
+  // Initial load
+  useState(() => {
+    if (currentAtom) loadCard(currentAtom);
+  });
+
+  // Rate and submit together
+  const handleRate = useCallback(
+    async (rating: SelfRating) => {
+      if (!currentCard || !currentAtom) return;
+
+      try {
+        const feedback = await submitAnswer.mutateAsync({
+          sessionId: currentCard.session_id,
+          answer: currentAnswer,
+          selfRating: rating,
+        });
+
+        setCurrentFeedback(feedback);
+
+        // Save progress per plan
+        if (planId) {
+          savePlanProgress(planId, currentAtom.atom_id);
+        }
+
+        // Record result
+        const result: ReviewResult = {
+          atom: currentAtom,
+          isCorrect: feedback.is_correct,
+          newStatus: feedback.updated_status,
+          previousStatus: currentAtom.status,
+        };
+        setResults((prev) => [...prev, result]);
+
+        if (feedback.is_correct) {
+          setStreak((s) => s + 1);
+        } else {
+          setStreak(0);
+        }
+
+        setStep('next');
+      } catch (e) {
+        setError(e instanceof Error ? e.message : '提交失败');
+      }
+    },
+    [currentCard, currentAtom, currentAnswer, submitAnswer, planId]
+  );
+
+  // Actually submit answer and show feedback (step: submitting → feedback)
+  const handleAnswerSubmit = useCallback(
+    async (answer: string) => {
+      if (!currentCard) return;
+      setCurrentAnswer(answer);
+      setStep('feedback');
+      // We'll wait for user to self-rate, then submit both together via handleRate
+    },
+    [currentCard]
+  );
+
+  // Next question
+  const handleNext = useCallback(() => {
+    const nextIdx = currentIndex + 1;
+    if (nextIdx >= total) {
+      // All atoms done — clear plan progress
+      if (planId) clearPlanProgress(planId);
+      onFinish(results);
+      return;
+    }
+    setCurrentIndex(nextIdx);
+    loadCard(atoms[nextIdx]);
+  }, [currentIndex, total, atoms, results, onFinish, loadCard, planId]);
+
+  // End early
+  const handleEndSession = useCallback(() => {
+    // Don't clear plan progress — user can resume next time
+    onFinish(results);
+  }, [results, onFinish]);
+
+  return (
+    <div className="flex min-h-screen flex-col bg-background">
+      {/* Top bar */}
+      <div className="flex items-center justify-between border-b px-6 py-3">
+        <button
+          onClick={onExit}
+          className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+        >
+          &#8592; 退出复习
+        </button>
+        <span className="text-sm font-medium text-foreground">
+          {currentAtom?.title}
+        </span>
+        <span className="text-sm text-muted-foreground">
+          {currentIndex + 1} / {total}
+        </span>
+      </div>
+
+      {/* Content */}
+      <div className="flex flex-1 items-start justify-center px-6 py-8">
+        <AnimatePresence mode="wait">
+          {/* Loading */}
+          {step === 'loading' && (
+            <motion.div
+              key="loading"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="mx-auto max-w-2xl space-y-4 pt-12"
+            >
+              <div className="h-32 animate-pulse rounded-xl border bg-muted/30" />
+              <div className="h-28 animate-pulse rounded-xl border bg-muted/30" />
+              {generateCard.isPending && (
+                <motion.p
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 3 }}
+                  className="text-center text-sm text-muted-foreground"
+                >
+                  AI 正在思考...
+                </motion.p>
+              )}
+            </motion.div>
+          )}
+
+          {/* Error */}
+          {error && step === 'question' && !currentCard && (
+            <motion.div
+              key="error"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="mx-auto max-w-2xl text-center"
+            >
+              <div className="rounded-xl border border-red-200 bg-red-50 p-6">
+                <p className="text-sm text-red-600">{error}</p>
+                <button
+                  onClick={() => currentAtom && loadCard(currentAtom)}
+                  className="mt-3 rounded-md bg-red-600 px-4 py-2 text-[13px] font-medium text-white hover:bg-red-700"
+                >
+                  重试
+                </button>
+              </div>
+            </motion.div>
+          )}
+
+          {/* Question */}
+          {step === 'question' && currentCard && (
+            <ReviewQuestion
+              key={`q-${currentCard.session_id}`}
+              card={currentCard}
+              onSubmit={handleAnswerSubmit}
+              isSubmitting={false}
+            />
+          )}
+
+          {/* Submitting */}
+          {step === 'submitting' && (
+            <motion.div
+              key="submitting"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="mx-auto max-w-2xl pt-12 text-center"
+            >
+              <span className="inline-block h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+              <p className="mt-3 text-sm text-muted-foreground">AI 正在评估...</p>
+            </motion.div>
+          )}
+
+          {/* Feedback */}
+          {step === 'feedback' && currentFeedback ? (
+            <ReviewFeedback
+              key={`f-${currentCard?.session_id}`}
+              feedback={currentFeedback}
+              onRate={handleRate}
+            />
+          ) : step === 'feedback' && !currentFeedback ? (
+            // Waiting for user to self-rate (feedback not yet fetched)
+            <ReviewFeedback
+              key={`f-pending-${currentCard?.session_id}`}
+              feedback={{ is_correct: true, feedback: '请先对自己的表现进行评估', updated_status: 'learning' }}
+              onRate={handleRate}
+            />
+          ) : null}
+
+          {/* Next */}
+          {step === 'next' && (
+            <motion.div
+              key="next"
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -12 }}
+              className="mx-auto max-w-md text-center"
+            >
+              {streak > 1 && (
+                <p className="mb-2 text-sm font-medium text-amber-600">
+                  连续答对 {streak} 次 &#128293;
+                </p>
+              )}
+              <p className="text-sm text-muted-foreground">
+                还有 {total - currentIndex - 1} 道题
+              </p>
+              <div className="mt-6 flex items-center justify-center gap-3">
+                <button
+                  onClick={handleNext}
+                  className="rounded-md bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+                >
+                  {currentIndex + 1 >= total ? '查看总结' : '下一题'}
+                </button>
+                {currentIndex + 1 < total && (
+                  <button
+                    onClick={handleEndSession}
+                    className="rounded-md border border-border px-4 py-2.5 text-sm text-muted-foreground transition-colors hover:bg-accent"
+                  >
+                    结束本次复习
+                  </button>
+                )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    </div>
+  );
+}

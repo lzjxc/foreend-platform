@@ -8,16 +8,14 @@ import {
   BookMarked,
   Users,
   Upload,
-  FileInput,
   Settings,
   ChevronLeft,
   Brain,
+  RotateCcw,
   Database,
   Wallet,
   Gauge,
   FileText,
-  History,
-  Settings2,
 } from 'lucide-react';
 import { useUIStore } from '@/stores/ui-store';
 import { cn } from '@/lib/utils';
@@ -27,18 +25,16 @@ const navItems = [
   { path: '/dashboard', icon: Home, label: '仪表盘' },
   { path: '/system', icon: Activity, label: '系统看板' },
   { path: '/machines', icon: Monitor, label: '远程设备' },
-  // { path: '/services', icon: Server, label: '服务目录' },  // 已合并到系统看板
   { path: '/docs', icon: FileText, label: '文档中心' },
-  { path: '/timeline', icon: History, label: '变更时间线' },
-  { path: '/argo-config', icon: Settings2, label: 'K8s配置' },
   { path: '/efficiency', icon: Gauge, label: '效能评估' },
   { path: '/data-sources', icon: Database, label: '数据源' },
   { path: '/finance', icon: Wallet, label: '财务统计' },
   { path: '/homework', icon: BookOpen, label: '作业助手' },
   { path: '/wordbook', icon: BookMarked, label: '单词本' },
+  { path: '/knowledge', icon: Brain, label: '知识库' },
+  { path: '/knowledge/review', icon: RotateCcw, label: '知识复习' },
   { path: '/members', icon: Users, label: '家庭成员' },
   { path: '/files', icon: Upload, label: '文件管理' },
-  { path: '/form-filling', icon: FileInput, label: '表单填充' },
   { path: '/settings', icon: Settings, label: '设置' },
 ];
 

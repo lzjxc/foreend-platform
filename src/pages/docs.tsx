@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   FileText,
   Search,
@@ -12,6 +12,10 @@ import {
   Home,
   HelpCircle,
   ChevronsUpDown,
+  RefreshCw,
+  Loader2,
+  CheckCircle2,
+  AlertCircle,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -35,7 +39,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
-import { useDocuments, useDocumentHtml } from '@/hooks/use-doc-service';
+import { useDocuments, useDocumentHtml, useCollectAll, useCollectStatus } from '@/hooks/use-doc-service';
 import type { DocType, Document } from '@/types/doc-service';
 import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
@@ -48,11 +52,14 @@ type ServiceLayer = 'global' | 'shared' | 'apps' | 'personal' | 'game' | 'other'
 const SERVICE_LAYER_MAP: Record<string, ServiceLayer> = {
   'config-service': 'shared',
   'data-fetcher': 'shared',
+  'doc-service': 'shared',
   'file-gateway': 'shared',
   'llm-gateway': 'shared',
+  'msg-gw': 'shared',
   'pdf-service': 'shared',
   'efficiency-evaluator': 'shared',
   'finance-service': 'shared',
+  'knowledge-hub': 'apps',
   'ai-weekly': 'apps',
   'bill-parser': 'apps',
   'homework': 'apps',
@@ -76,7 +83,10 @@ const LAYER_CONFIG: Record<ServiceLayer, { label: string; icon: typeof Globe; co
 
 const DOC_TYPE_LABELS: Record<DocType, string> = {
   claude_md: 'Claude MD',
+  readme: 'README',
   api_doc: 'API 文档',
+  architecture: '架构文档',
+  error_log: '错误记录',
   system_doc: '系统文档',
   tutorial: '教程',
   other: '其他',
@@ -84,7 +94,10 @@ const DOC_TYPE_LABELS: Record<DocType, string> = {
 
 const DOC_TYPE_COLORS: Record<DocType, string> = {
   claude_md: 'bg-purple-100 text-purple-800',
+  readme: 'bg-cyan-100 text-cyan-800',
   api_doc: 'bg-blue-100 text-blue-800',
+  architecture: 'bg-emerald-100 text-emerald-800',
+  error_log: 'bg-red-100 text-red-800',
   system_doc: 'bg-green-100 text-green-800',
   tutorial: 'bg-orange-100 text-orange-800',
   other: 'bg-gray-100 text-gray-800',
@@ -106,10 +119,14 @@ function formatRelativeTime(dateStr?: string): string {
   }
 }
 
+function getDocTimestamp(doc: Document): string | undefined {
+  return doc.source_updated_at || doc.updated_at || doc.created_at;
+}
+
 function getLatestTimestamp(docs: Document[]): string | undefined {
   let latest: string | undefined;
   for (const doc of docs) {
-    const ts = doc.updated_at || doc.created_at;
+    const ts = getDocTimestamp(doc);
     if (ts && (!latest || ts > latest)) {
       latest = ts;
     }
@@ -181,6 +198,9 @@ function ServiceCard({
               <Badge className={cn('text-[10px] px-1.5 py-0 shrink-0', DOC_TYPE_COLORS[doc.doc_type])}>
                 {DOC_TYPE_LABELS[doc.doc_type]}
               </Badge>
+              <span className="text-[10px] text-muted-foreground shrink-0 tabular-nums">
+                {formatRelativeTime(getDocTimestamp(doc))}
+              </span>
               <Eye className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
             </button>
           ))}
@@ -262,8 +282,9 @@ export default function DocsPage() {
   const [expandedLayers, setExpandedLayers] = useState<Set<ServiceLayer>>(
     () => new Set(LAYER_ORDER)
   );
+  const [collectPolling, setCollectPolling] = useState(false);
 
-  const { data: docsData, isLoading } = useDocuments({
+  const { data: docsData, isLoading, refetch: refetchDocs } = useDocuments({
     doc_type: docType === 'all' ? undefined : docType,
     search: search || undefined,
     limit: 100,
@@ -272,6 +293,25 @@ export default function DocsPage() {
   const { data: htmlContent, isLoading: isLoadingHtml } = useDocumentHtml(
     selectedDoc?.id ?? null
   );
+
+  const collectAll = useCollectAll();
+  const { data: collectStatus } = useCollectStatus(collectPolling);
+
+  // Start polling on trigger, stop when done
+  useEffect(() => {
+    if (collectPolling && collectStatus && !collectStatus.running) {
+      setCollectPolling(false);
+      refetchDocs();
+    }
+  }, [collectPolling, collectStatus, refetchDocs]);
+
+  const handleCollect = () => {
+    collectAll.mutate(undefined, {
+      onSuccess: () => setCollectPolling(true),
+    });
+  };
+
+  const isCollecting = collectAll.isPending || (collectPolling && collectStatus?.running);
 
   const documents = useMemo(() => docsData?.data ?? [], [docsData]);
   const grouped = useMemo(() => groupDocsByLayer(documents), [documents]);
@@ -309,15 +349,81 @@ export default function DocsPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">文档中心</h1>
-        <p className="text-muted-foreground">
-          查阅和管理系统文档、API 文档、开发规范等
-          {totalDocs > 0 && (
-            <span className="ml-2 text-foreground font-medium">({totalDocs} 篇)</span>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">文档中心</h1>
+          <p className="text-muted-foreground">
+            查阅和管理系统文档、API 文档、开发规范等
+            {totalDocs > 0 && (
+              <span className="ml-2 text-foreground font-medium">({totalDocs} 篇)</span>
+            )}
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleCollect}
+          disabled={isCollecting}
+          className="shrink-0"
+        >
+          {isCollecting ? (
+            <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+          ) : (
+            <RefreshCw className="h-4 w-4 mr-1.5" />
           )}
-        </p>
+          {isCollecting ? '采集中...' : '采集文档'}
+        </Button>
       </div>
+
+      {/* Collection Status Banner */}
+      {collectPolling && collectStatus?.running && (
+        <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 flex items-center gap-3 text-sm">
+          <Loader2 className="h-4 w-4 animate-spin text-blue-600 shrink-0" />
+          <div className="flex-1">
+            <span className="font-medium text-blue-800">
+              {collectStatus.current_step || '采集中'}
+            </span>
+            <span className="text-blue-600 ml-2">
+              ({collectStatus.current_step_num}/{collectStatus.total_steps})
+            </span>
+            {(collectStatus.documents_created ?? 0) > 0 && (
+              <span className="text-blue-600 ml-2">
+                已创建 {collectStatus.documents_created} 篇
+              </span>
+            )}
+          </div>
+          {collectStatus.progress !== undefined && (
+            <div className="w-20 h-1.5 bg-blue-200 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-blue-600 rounded-full transition-all"
+                style={{ width: `${collectStatus.progress}%` }}
+              />
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Collection Complete Banner */}
+      {!collectPolling && collectStatus && !collectStatus.running && collectStatus.status === 'completed' && collectAll.isSuccess && (
+        <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 flex items-center gap-3 text-sm">
+          <CheckCircle2 className="h-4 w-4 text-green-600 shrink-0" />
+          <span className="text-green-800">
+            采集完成: {collectStatus.documents_created ?? 0} 篇创建,{' '}
+            {collectStatus.documents_updated ?? 0} 篇更新,{' '}
+            {collectStatus.commits_collected ?? 0} 条 commit
+            {collectStatus.duration_seconds ? ` (${collectStatus.duration_seconds}s)` : ''}
+          </span>
+        </div>
+      )}
+
+      {(collectStatus?.errors_count ?? 0) > 0 && collectAll.isSuccess && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 flex items-center gap-3 text-sm">
+          <AlertCircle className="h-4 w-4 text-amber-600 shrink-0" />
+          <span className="text-amber-800">
+            采集过程中出现 {collectStatus?.errors_count} 个错误
+          </span>
+        </div>
+      )}
 
       {/* Filters */}
       <Card>
@@ -401,7 +507,7 @@ export default function DocsPage() {
                   <span>服务: {selectedDoc.service_id}</span>
                 )}
                 <span>版本: {selectedDoc.version}</span>
-                <span>更新: {formatRelativeTime(selectedDoc.updated_at || selectedDoc.created_at)}</span>
+                <span>更新: {formatRelativeTime(getDocTimestamp(selectedDoc))}</span>
               </div>
             )}
           </DialogHeader>

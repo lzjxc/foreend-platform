@@ -159,6 +159,12 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (p) => p.replace(/^\/mac-camera-api/, ''),
       },
+      // Proxy Knowledge Hub API
+      '/knowledge-api': {
+        target: 'http://192.168.1.191:32254',
+        changeOrigin: true,
+        rewrite: (p) => p.replace(/^\/knowledge-api/, ''),
+      },
     },
   },
 });
