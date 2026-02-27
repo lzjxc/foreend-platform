@@ -12,6 +12,7 @@
 - **Knowledge Review** - Spaced repetition review system, AI-generated learning plans with curriculum
 - **Homework Assistant** - Chinese, Math, English homework with AI-powered grading
 - **Wordbook** - FSRS-based spaced repetition word learning
+- **Game Development** - Modular game design toolkit: atomic skill design (atoms → reference skills → instances + modifiers + rules), AI-assisted framework design, character/story/art placeholders
 - **Finance Tracking** - Multi-platform financial data with budget tracking, currency-based stats, and monthly trend charts
 - **Efficiency Evaluator** - Service evaluation with compliance audits and recommendations
 - **Personal Info** - Family member management (documents, addresses, bank accounts, medical records, form filling)
@@ -70,6 +71,8 @@ All backend services are accessed via relative paths through Vite dev proxy (loc
 | `/remote-wake-api` | remote-wake-service |
 | `/argo-api` | argo-workflows-server |
 | `/knowledge-api` | knowledge-hub |
+| `/design-skills-api` | design-skills (game skill design) |
+| `/game-workshop-api` | game-workshop (framework design) |
 | `/mac-camera-api` | MacBook camera (LAN direct) |
 | `/minio-s3` | MinIO S3 storage |
 

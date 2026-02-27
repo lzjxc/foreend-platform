@@ -29,6 +29,15 @@ import KnowledgeReviewPage from '@/pages/knowledge-review';
 import KnowledgePlansPage from '@/pages/knowledge-plans';
 import KnowledgePlanDetailPage from '@/pages/knowledge-plan-detail';
 import MembersLayout from '@/pages/members-layout';
+import GameDevLanding from '@/pages/game-dev-landing';
+import GameDevLayout from '@/pages/game-dev-layout';
+import GameDevWorkbench from '@/pages/game-dev-workbench';
+import GameDevAtoms from '@/pages/game-dev-atoms';
+import GameDevOriginals from '@/pages/game-dev-originals';
+import GameDevModifiers from '@/pages/game-dev-modifiers';
+import GameDevRules from '@/pages/game-dev-rules';
+import GameDevWorkshop from '@/pages/game-dev-workshop';
+import GameDevWorkshopDetail from '@/pages/game-dev-workshop-detail';
 
 function PlanDetailRedirect() {
   const { planId } = useParams();
@@ -83,6 +92,19 @@ function App() {
         <Route path="form-filling" element={<Navigate to="/members/form-filling" replace />} />
         <Route path="knowledge/plans" element={<Navigate to="/knowledge/review/plans" replace />} />
         <Route path="knowledge/plans/:planId" element={<PlanDetailRedirect />} />
+
+        {/* Game Development — landing + sub-modules */}
+        <Route path="game-dev" element={<GameDevLanding />} />
+        <Route path="game-dev/skills" element={<GameDevLayout />}>
+          <Route index element={<Navigate to="/game-dev/skills/workbench" replace />} />
+          <Route path="workbench" element={<GameDevWorkbench />} />
+          <Route path="atoms" element={<GameDevAtoms />} />
+          <Route path="originals" element={<GameDevOriginals />} />
+          <Route path="modifiers" element={<GameDevModifiers />} />
+          <Route path="rules" element={<GameDevRules />} />
+        </Route>
+        <Route path="game-dev/framework" element={<GameDevWorkshop />} />
+        <Route path="game-dev/framework/:projectId" element={<GameDevWorkshopDetail />} />
 
         <Route path="machines" element={<MachinesPage />} />
         <Route path="files" element={<Files />} />

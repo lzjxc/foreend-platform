@@ -158,11 +158,23 @@ export default defineConfig({
                 changeOrigin: true,
                 rewrite: function (p) { return p.replace(/^\/mac-camera-api/, ''); },
             },
+            // Proxy Design Skills API (game development)
+            '/design-skills-api': {
+                target: 'http://192.168.1.191:30245',
+                changeOrigin: true,
+                rewrite: function (p) { return p.replace(/^\/design-skills-api/, ''); },
+            },
             // Proxy Knowledge Hub API
             '/knowledge-api': {
                 target: 'http://192.168.1.191:32254',
                 changeOrigin: true,
                 rewrite: function (p) { return p.replace(/^\/knowledge-api/, ''); },
+            },
+            // Proxy Game Workshop API (AI-assisted game design)
+            '/game-workshop-api': {
+                target: 'http://192.168.1.191:30800',
+                changeOrigin: true,
+                rewrite: function (p) { return p.replace(/^\/game-workshop-api/, ''); },
             },
         },
     },

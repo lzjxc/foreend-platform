@@ -152,6 +152,14 @@ export const macCameraClient = createApiClient(MAC_CAMERA_URL);
 const KNOWLEDGE_API_URL = '/knowledge-api';  // Both dev (Vite) and prod (nginx)
 export const knowledgeClient = createApiClient(KNOWLEDGE_API_URL, false, 120000);
 
+// Design Skills API client - use proxy
+const DESIGN_SKILLS_URL = '/design-skills-api';  // Both dev (Vite) and prod (nginx)
+export const gameDesignClient = createApiClient(DESIGN_SKILLS_URL);
+
+// Game Workshop API client - use proxy (longer timeout for AI analysis)
+const GAME_WORKSHOP_URL = '/game-workshop-api';  // Both dev (Vite) and prod (nginx)
+export const gameWorkshopClient = createApiClient(GAME_WORKSHOP_URL, false, 120000);
+
 // Helper function to handle API responses
 export async function handleApiResponse<T>(promise: Promise<{ data: T }>): Promise<T> {
   const response = await promise;

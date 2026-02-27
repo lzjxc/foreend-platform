@@ -16,6 +16,7 @@ import {
   Wallet,
   Gauge,
   FileText,
+  Gamepad2,
 } from 'lucide-react';
 import { useUIStore } from '@/stores/ui-store';
 import { cn } from '@/lib/utils';
@@ -33,6 +34,7 @@ const navItems = [
   { path: '/wordbook', icon: BookMarked, label: '单词本' },
   { path: '/knowledge', icon: Brain, label: '知识库' },
   { path: '/knowledge/review', icon: RotateCcw, label: '知识复习' },
+  { path: '/game-dev', icon: Gamepad2, label: '游戏开发' },
   { path: '/members', icon: Users, label: '家庭成员' },
   { path: '/files', icon: Upload, label: '文件管理' },
   { path: '/settings', icon: Settings, label: '设置' },
