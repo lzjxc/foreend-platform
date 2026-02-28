@@ -70,6 +70,7 @@ const SERVICE_LAYER_MAP: Record<string, ServiceLayer> = {
   'personal-info': 'personal',
   'foreend-platform': 'personal',
   'game-weekly': 'game',
+  'game-design-workshop': 'game',
 };
 
 const LAYER_ORDER: ServiceLayer[] = ['global', 'shared', 'apps', 'game', 'personal', 'other'];
@@ -123,6 +124,18 @@ function formatRelativeTime(dateStr?: string): string {
 
 function getDocTimestamp(doc: Document): string | undefined {
   return doc.source_updated_at || doc.updated_at || doc.created_at;
+}
+
+function formatShortDate(dateStr?: string): string {
+  if (!dateStr) return '';
+  try {
+    const d = new Date(dateStr);
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${month}-${day}`;
+  } catch {
+    return '';
+  }
 }
 
 function getLatestTimestamp(docs: Document[]): string | undefined {
@@ -200,8 +213,8 @@ function ServiceCard({
               <Badge className={cn('text-[10px] px-1.5 py-0 shrink-0', DOC_TYPE_COLORS[doc.doc_type])}>
                 {DOC_TYPE_LABELS[doc.doc_type]}
               </Badge>
-              <span className="text-[10px] text-muted-foreground shrink-0 tabular-nums">
-                {formatRelativeTime(getDocTimestamp(doc))}
+              <span className="text-[10px] text-muted-foreground shrink-0 tabular-nums" title={doc.source_updated_at ? `源文件修改: ${new Date(doc.source_updated_at).toLocaleString('zh-CN')}` : undefined}>
+                {doc.source_updated_at ? formatShortDate(doc.source_updated_at) : formatRelativeTime(doc.created_at)}
               </span>
               <Eye className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
             </button>
@@ -209,7 +222,7 @@ function ServiceCard({
         </div>
 
         <div className="mt-3 pt-2 border-t text-xs text-muted-foreground">
-          更新: {formatRelativeTime(latestTs)}
+          最后修改: {formatRelativeTime(latestTs)}
         </div>
       </CardContent>
     </Card>
@@ -348,8 +361,16 @@ function RecentUpdates({
               <Badge className={cn('text-[10px] px-1.5 py-0 shrink-0', DOC_TYPE_COLORS[doc.doc_type])}>
                 {DOC_TYPE_LABELS[doc.doc_type]}
               </Badge>
-              <span className="text-[10px] text-muted-foreground shrink-0 tabular-nums w-[70px] text-right">
-                {formatRelativeTime(getDocTimestamp(doc))}
+              <span className="text-[10px] text-muted-foreground shrink-0 tabular-nums text-right flex items-center gap-1">
+                {doc.source_updated_at ? (
+                  <span title={`源文件修改: ${new Date(doc.source_updated_at).toLocaleString('zh-CN')}`}>
+                    {formatRelativeTime(doc.source_updated_at)}
+                  </span>
+                ) : (
+                  <span className="text-muted-foreground/60" title={`采集时间: ${new Date(doc.created_at).toLocaleString('zh-CN')}`}>
+                    {formatRelativeTime(doc.created_at)}
+                  </span>
+                )}
               </span>
               <Eye className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
             </button>
@@ -604,12 +625,15 @@ export default function DocsPage() {
               )}
             </DialogTitle>
             {selectedDoc && (
-              <div className="flex items-center gap-3 text-sm text-muted-foreground">
+              <div className="flex items-center gap-3 text-sm text-muted-foreground flex-wrap">
                 {selectedDoc.service_id && (
                   <span>服务: {selectedDoc.service_id}</span>
                 )}
                 <span>版本: {selectedDoc.version}</span>
-                <span>更新: {formatRelativeTime(getDocTimestamp(selectedDoc))}</span>
+                {selectedDoc.source_updated_at && (
+                  <span>修改: {new Date(selectedDoc.source_updated_at).toLocaleString('zh-CN')}</span>
+                )}
+                <span>采集: {formatRelativeTime(selectedDoc.collected_at || selectedDoc.created_at)}</span>
               </div>
             )}
           </DialogHeader>

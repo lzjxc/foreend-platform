@@ -172,7 +172,7 @@ export default defineConfig({
             },
             // Proxy Game Workshop API (AI-assisted game design)
             '/game-workshop-api': {
-                target: 'http://192.168.1.191:30800',
+                target: 'http://192.168.1.191:32758',
                 changeOrigin: true,
                 rewrite: function (p) { return p.replace(/^\/game-workshop-api/, ''); },
             },
