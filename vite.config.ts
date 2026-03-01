@@ -179,7 +179,7 @@ export default defineConfig({
       },
       // Proxy Design Image API (game art prompt generation)
       '/design-image-api': {
-        target: 'http://192.168.1.191:30000',  // placeholder port, will be updated after deployment
+        target: 'http://192.168.1.191:31472',
         changeOrigin: true,
         rewrite: (p: string) => p.replace(/^\/design-image-api/, ''),
       },
