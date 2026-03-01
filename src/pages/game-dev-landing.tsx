@@ -69,7 +69,7 @@ export default function GameDevLanding() {
       icon: Image,
       path: '/game-dev/art-2d',
       color: 'from-pink-500/20 to-pink-600/5 border-pink-500/30',
-      ready: false,
+      ready: true,
     },
     {
       id: 'model-3d',

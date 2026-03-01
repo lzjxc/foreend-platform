@@ -38,6 +38,9 @@ import GameDevModifiers from '@/pages/game-dev-modifiers';
 import GameDevRules from '@/pages/game-dev-rules';
 import GameDevWorkshop from '@/pages/game-dev-workshop';
 import GameDevWorkshopDetail from '@/pages/game-dev-workshop-detail';
+import GameDevArt2DLayout from '@/pages/game-dev-art2d-layout';
+import GameDevArt2DGenerator from '@/pages/game-dev-art2d-generator';
+import GameDevArt2DHistory from '@/pages/game-dev-art2d-history';
 
 function PlanDetailRedirect() {
   const { planId } = useParams();
@@ -105,6 +108,11 @@ function App() {
         </Route>
         <Route path="game-dev/framework" element={<GameDevWorkshop />} />
         <Route path="game-dev/framework/:projectId" element={<GameDevWorkshopDetail />} />
+        <Route path="game-dev/art-2d" element={<GameDevArt2DLayout />}>
+          <Route index element={<Navigate to="/game-dev/art-2d/generator" replace />} />
+          <Route path="generator" element={<GameDevArt2DGenerator />} />
+          <Route path="history" element={<GameDevArt2DHistory />} />
+        </Route>
 
         <Route path="machines" element={<MachinesPage />} />
         <Route path="files" element={<Files />} />
