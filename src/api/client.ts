@@ -160,6 +160,10 @@ export const gameDesignClient = createApiClient(DESIGN_SKILLS_URL);
 const GAME_WORKSHOP_URL = '/game-workshop-api';  // Both dev (Vite) and prod (nginx)
 export const gameWorkshopClient = createApiClient(GAME_WORKSHOP_URL, false, 120000);
 
+// Design Image API client - use proxy (longer timeout for LLM generation)
+const DESIGN_IMAGE_URL = '/design-image-api';
+export const designImageClient = createApiClient(DESIGN_IMAGE_URL, false, 60000);
+
 // Helper function to handle API responses
 export async function handleApiResponse<T>(promise: Promise<{ data: T }>): Promise<T> {
   const response = await promise;
