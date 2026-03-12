@@ -164,6 +164,10 @@ export const gameWorkshopClient = createApiClient(GAME_WORKSHOP_URL, false, 1200
 const DESIGN_IMAGE_URL = '/design-image-api';
 export const designImageClient = createApiClient(DESIGN_IMAGE_URL, false, 60000);
 
+// Message Gateway API client - use proxy
+const MSG_GW_URL = '/notification-api';  // Both dev (Vite) and prod (nginx)
+export const msgGwClient = createApiClient(MSG_GW_URL);
+
 // Helper function to handle API responses
 export async function handleApiResponse<T>(promise: Promise<{ data: T }>): Promise<T> {
   const response = await promise;
