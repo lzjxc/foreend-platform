@@ -1,6 +1,6 @@
 # Personal Info Frontend - Claude Code 开发规范
 
-> 最后更新: 2026-02-27
+> 最后更新: 2026-03-12
 >
 > 本文档为 Claude Code 提供项目开发上下文，确保代码生成符合项目规范。
 
@@ -16,6 +16,7 @@
 |------|------|------|
 | 仪表盘 | `/dashboard` | 系统概览、货币统计 |
 | 系统看板 | `/system` | 服务健康、LLM 用量、Skill 管理 |
+| 消息网关 | `/msg-gateway` | 渠道管理、Provider管理、测试发送、热加载 |
 | 远程设备 | `/machines` | WoL、关机、MacBook 摄像头 |
 | 文档中心 | `/docs` | 文档查阅(按服务分层)、变更时间线、K8s 配置 |
 | 效能评估 | `/efficiency` | 合规审计、服务评估建议 |
@@ -217,6 +218,7 @@ export const efficiencyClient = createApiClient('/efficiency-api'); // 效能评
 export const remoteWakeClient = createApiClient('/remote-wake-api'); // 远程唤醒
 export const argoClient = createApiClient('/argo-api');             // Argo Workflows
 export const macCameraClient = createApiClient('/mac-camera-api');  // MacBook 摄像头
+export const msgGwClient = createApiClient('/notification-api');    // 消息网关
 ```
 
 ### 3.2 API 端点清单
@@ -820,10 +822,10 @@ export default App;
 
 ## 8. 路由与导航架构
 
-### 8.1 侧边栏导航 (15 项)
+### 8.1 侧边栏导航 (16 项)
 
 ```
-仪表盘 / 系统看板 / 远程设备 / 文档中心 / 效能评估 / 数据源 / 财务统计 /
+仪表盘 / 系统看板 / 消息网关 / 远程设备 / 文档中心 / 效能评估 / 数据源 / 财务统计 /
 作业助手 / 单词本 / 知识库 / 知识复习 / 游戏开发 / 家庭成员 / 文件管理 / 设置
 ```
 
@@ -974,6 +976,7 @@ npm run electron:build
 
 | 日期 | 变更 | 作者 |
 |------|------|------|
+| 2026-03-12 | 新增消息网关模块(渠道管理/Provider管理/测试发送/热加载) | Claude |
 | 2026-02-27 | 新增游戏开发模块(技能设计+框架设计)，Landing 页+6 模块卡片 | Claude |
 | 2026-02-07 | 文档中心按服务层级分组重构，财务趋势图增加实时数据合并 | Claude |
 | 2026-01-20 | 初始版本 - 完整前端开发规范 | Claude |

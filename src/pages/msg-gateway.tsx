@@ -117,7 +117,7 @@ function ChannelCard({
         {channel.description && (
           <p className="text-sm text-muted-foreground">{channel.description}</p>
         )}
-        {channel.default_recipients.length > 0 && (
+        {channel.default_recipients?.length > 0 && (
           <p className="text-xs text-muted-foreground">
             默认接收: {channel.default_recipients.join(', ')}
           </p>
