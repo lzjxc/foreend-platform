@@ -17,6 +17,7 @@ import {
   Gauge,
   FileText,
   Gamepad2,
+  MessageSquare,
 } from 'lucide-react';
 import { useUIStore } from '@/stores/ui-store';
 import { cn } from '@/lib/utils';
@@ -25,6 +26,7 @@ import { Button } from '@/components/ui/button';
 const navItems = [
   { path: '/dashboard', icon: Home, label: '仪表盘' },
   { path: '/system', icon: Activity, label: '系统看板' },
+  { path: '/msg-gateway', icon: MessageSquare, label: '消息网关' },
   { path: '/machines', icon: Monitor, label: '远程设备' },
   { path: '/docs', icon: FileText, label: '文档中心' },
   { path: '/efficiency', icon: Gauge, label: '效能评估' },

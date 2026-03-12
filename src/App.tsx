@@ -41,6 +41,7 @@ import GameDevWorkshopDetail from '@/pages/game-dev-workshop-detail';
 import GameDevArt2DLayout from '@/pages/game-dev-art2d-layout';
 import GameDevArt2DGenerator from '@/pages/game-dev-art2d-generator';
 import GameDevArt2DHistory from '@/pages/game-dev-art2d-history';
+import MsgGateway from '@/pages/msg-gateway';
 
 function PlanDetailRedirect() {
   const { planId } = useParams();
@@ -54,6 +55,7 @@ function App() {
         <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="dashboard" element={<Dashboard />} />
         <Route path="system" element={<SystemDashboard />} />
+        <Route path="msg-gateway" element={<MsgGateway />} />
         <Route path="services" element={<ServiceCatalog />} />
         <Route path="efficiency" element={<EfficiencyEvaluator />} />
         <Route path="data-sources" element={<DataSources />} />

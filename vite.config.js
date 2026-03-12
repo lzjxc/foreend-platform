@@ -87,7 +87,7 @@ export default defineConfig({
             },
             // Proxy Notification Service for health checks
             '/notification-api': {
-                target: 'http://192.168.1.191:31417',
+                target: 'http://192.168.1.191:31229',
                 changeOrigin: true,
                 rewrite: function (p) { return p.replace(/^\/notification-api/, ''); },
             },
@@ -175,6 +175,12 @@ export default defineConfig({
                 target: 'http://192.168.1.191:32758',
                 changeOrigin: true,
                 rewrite: function (p) { return p.replace(/^\/game-workshop-api/, ''); },
+            },
+            // Proxy Design Image API (game art prompt generation)
+            '/design-image-api': {
+                target: 'http://192.168.1.191:31472',
+                changeOrigin: true,
+                rewrite: function (p) { return p.replace(/^\/design-image-api/, ''); },
             },
         },
     },
