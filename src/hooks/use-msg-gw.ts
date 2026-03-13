@@ -12,6 +12,7 @@ export const msgGwKeys = {
   channels: () => [...msgGwKeys.all, 'channels'] as const,
   health: () => [...msgGwKeys.all, 'health'] as const,
   stats: () => [...msgGwKeys.all, 'stats'] as const,
+  logs: (channel: string) => [...msgGwKeys.all, 'logs', channel] as const,
 };
 
 // ==================== Provider hooks ====================
@@ -147,6 +148,27 @@ export function useNotificationStats() {
       const { data } = await statsApi.list();
       return data.data;
     },
+  });
+}
+
+export function useSourceStats() {
+  return useQuery({
+    queryKey: [...msgGwKeys.stats(), 'by-source'] as const,
+    queryFn: async () => {
+      const { data } = await statsApi.bySource();
+      return data.data;
+    },
+  });
+}
+
+export function useNotificationLogs(channelName: string, source?: string) {
+  return useQuery({
+    queryKey: [...msgGwKeys.logs(channelName), source ?? ''],
+    queryFn: async () => {
+      const { data } = await statsApi.logs(channelName, source);
+      return data.data;
+    },
+    enabled: !!channelName,
   });
 }
 

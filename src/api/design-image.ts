@@ -1,5 +1,5 @@
 import { designImageClient } from './client';
-import type { GenerateRequest, GenerateResponse, HistoryListResponse, PresetItem } from '@/types/design-image';
+import type { GenerateRequest, GenerateResponse, HistoryListResponse, PresetItem, ImageGenerateRequest, ImageGenerateResponse } from '@/types/design-image';
 
 export async function generatePrompt(req: GenerateRequest) {
   const { data } = await designImageClient.post<GenerateResponse>('/api/v1/generate', req);
@@ -43,4 +43,9 @@ export function buildStreamUrl(req: GenerateRequest): string {
   if (ctx.art_direction_notes) params.set('art_direction_notes', ctx.art_direction_notes);
 
   return `/design-image-api/api/v1/generate/stream?${params.toString()}`;
+}
+
+export async function generateImage(req: ImageGenerateRequest): Promise<ImageGenerateResponse> {
+  const { data } = await designImageClient.post<ImageGenerateResponse>('/api/v1/generate-image', req);
+  return data;
 }

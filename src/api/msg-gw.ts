@@ -3,6 +3,7 @@ import type {
   MsgGwProvider, CreateProviderInput, UpdateProviderInput,
   MsgGwChannel, CreateChannelInput, UpdateChannelInput,
   ChannelTestInput, ProviderTypeInfo, MsgGwHealth, NotificationStats,
+  NotificationLogEntry, SourceStats,
 } from '@/types/msg-gw';
 
 export const providerApi = {
@@ -31,4 +32,10 @@ export const msgGwAdminApi = {
 
 export const statsApi = {
   list: () => msgGwClient.get<{ success: boolean; data: NotificationStats[] }>('/api/v1/stats'),
+  bySource: () => msgGwClient.get<{ success: boolean; data: SourceStats[] }>('/api/v1/stats/by-source'),
+  logs: (channelName: string, source?: string, limit = 50) => {
+    const params = new URLSearchParams({ limit: String(limit) });
+    if (source) params.set('source', source);
+    return msgGwClient.get<{ success: boolean; data: NotificationLogEntry[] }>(`/api/v1/stats/logs/${channelName}?${params}`);
+  },
 };

@@ -91,3 +91,30 @@ export const TARGET_TOOL_LABELS: Record<TargetTool, string> = {
   midjourney: 'Midjourney', stablediffusion: 'Stable Diffusion', dalle3: 'DALL-E 3',
   leonardo: 'Leonardo', comfyui: 'ComfyUI',
 };
+
+// Image generation types
+export interface ImageGenerateRequest {
+  project_context: ProjectContext;
+  content_type: ContentType;
+  art_style: ArtStyle;
+  params: Record<string, unknown>;
+  width?: number;
+  height?: number;
+}
+
+export interface ImageGenerateMetadata {
+  content_type: string;
+  art_style: string;
+  tokens_used: number;
+  exec_time_ms: number;
+  created_at: string;
+}
+
+export interface ImageGenerateResponse {
+  id: string;
+  image_base64: string;
+  code: string;
+  width: number;
+  height: number;
+  metadata: ImageGenerateMetadata;
+}

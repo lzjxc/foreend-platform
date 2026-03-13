@@ -49,6 +49,8 @@ import {
   useDeleteChannel,
   useTestChannel,
   useNotificationStats,
+  useNotificationLogs,
+  useSourceStats,
 } from '@/hooks/use-msg-gw';
 import type {
   MsgGwProvider,
@@ -59,6 +61,7 @@ import type {
   UpdateChannelInput,
   ProviderTypeInfo,
   NotificationStats,
+  SourceStats,
 } from '@/types/msg-gw';
 
 // ==================== Constants ====================
@@ -659,8 +662,114 @@ const NOTIFICATION_TASKS: NotificationTask[] = [
   },
 ];
 
-function NotificationTaskList({ stats }: { stats?: NotificationStats[] }) {
+function NotificationLogDialog({
+  open,
+  onOpenChange,
+  channelName,
+  taskName,
+  source,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  channelName: string;
+  taskName: string;
+  source: string;
+}) {
+  const { data: logs, isLoading } = useNotificationLogs(channelName, source);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-3xl max-h-[80vh] overflow-hidden flex flex-col">
+        <DialogHeader>
+          <DialogTitle>{taskName} - 通知记录</DialogTitle>
+          <DialogDescription>
+            渠道: {channelName} | 来源: {source} | 共 {logs?.length ?? 0} 条记录
+          </DialogDescription>
+        </DialogHeader>
+        <div className="overflow-y-auto flex-1 -mx-6 px-6">
+          {isLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+            </div>
+          ) : !logs?.length ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">暂无通知记录</p>
+          ) : (
+            <div className="space-y-1">
+              {logs.map((log) => {
+                const isExpanded = expandedId === log.id;
+                return (
+                  <div
+                    key={log.id}
+                    className={cn(
+                      'rounded-lg border transition-colors',
+                      log.success ? 'border-border' : 'border-red-300 bg-red-50 dark:border-red-800 dark:bg-red-950/30',
+                      !isExpanded && 'hover:bg-muted/30 cursor-pointer'
+                    )}
+                  >
+                    <div
+                      className="flex items-center justify-between px-3 py-2 cursor-pointer"
+                      onClick={() => setExpandedId(isExpanded ? null : log.id)}
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className={cn(
+                          'h-2 w-2 rounded-full shrink-0',
+                          log.success ? 'bg-green-500' : 'bg-red-500'
+                        )} />
+                        <span className="text-sm font-medium truncate">{log.title || '(无标题)'}</span>
+                        {log.content_preview && !isExpanded && (
+                          <span className="text-xs text-muted-foreground truncate max-w-[200px]">
+                            — {log.content_preview.split('\n')[0]}
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-xs text-muted-foreground whitespace-nowrap ml-2">
+                        {log.sent_at ? formatDateTime(log.sent_at) : '-'}
+                      </span>
+                    </div>
+                    {isExpanded && (
+                      <div className="px-3 pb-3 border-t border-border/50">
+                        {log.content_preview ? (
+                          <pre className="text-xs text-muted-foreground pt-2 whitespace-pre-wrap font-sans">
+                            {log.content_preview}
+                          </pre>
+                        ) : (
+                          <p className="text-xs text-muted-foreground pt-2 italic">无内容</p>
+                        )}
+                        {log.error && (
+                          <p className="text-xs text-red-600 dark:text-red-400 mt-1">
+                            错误: {log.error}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function NotificationTaskList({ stats, sourceStats }: { stats?: NotificationStats[]; sourceStats?: SourceStats[] }) {
+  const [logDialog, setLogDialog] = useState<{ open: boolean; channelName: string; taskName: string; source: string }>({
+    open: false, channelName: '', taskName: '', source: '',
+  });
   const statsMap = new Map(stats?.map((s) => [s.channel_name, s]) || []);
+
+  // Build source stats lookup: "channel:source" → SourceStats
+  const sourceStatsMap = new Map(
+    sourceStats?.map((s) => [`${s.channel_name}:${s.source}`, s]) || []
+  );
+
+  // Track which channels are shared by multiple tasks
+  const channelUsage = new Map<string, number>();
+  NOTIFICATION_TASKS.forEach((t) => {
+    channelUsage.set(t.channel, (channelUsage.get(t.channel) || 0) + 1);
+  });
 
   return (
     <div className="space-y-4">
@@ -683,9 +792,22 @@ function NotificationTaskList({ stats }: { stats?: NotificationStats[] }) {
           </thead>
           <tbody>
             {NOTIFICATION_TASKS.map((task) => {
-              const s = statsMap.get(task.channel);
+              const channelStat = statsMap.get(task.channel);
+              const srcStat = sourceStatsMap.get(`${task.channel}:${task.app}`);
+              const isSharedChannel = (channelUsage.get(task.channel) || 0) > 1;
+
+              // Use source-specific stats when available, fall back to channel stats
+              const taskCount = srcStat?.total_count ?? null;
+              const taskFailCount = srcStat?.fail_count ?? 0;
+              const taskLastSent = srcStat?.last_sent_at ?? null;
+              const taskFirstSent = srcStat?.first_sent_at ?? null;
+
               return (
-                <tr key={task.name} className="border-b last:border-0 hover:bg-muted/30">
+                <tr
+                  key={task.name}
+                  className="border-b last:border-0 hover:bg-muted/30 cursor-pointer"
+                  onClick={() => setLogDialog({ open: true, channelName: task.channel, taskName: task.name, source: task.app })}
+                >
                   <td className="px-4 py-3 font-medium whitespace-nowrap">
                     <div className="flex items-center gap-2">
                       <Bell className="h-4 w-4 text-muted-foreground" />
@@ -718,27 +840,54 @@ function NotificationTaskList({ stats }: { stats?: NotificationStats[] }) {
                   </td>
                   <td className="px-4 py-3 text-muted-foreground max-w-xs">{task.purpose}</td>
                   <td className="px-4 py-3 text-right whitespace-nowrap">
-                    {s ? (
+                    {taskCount !== null ? (
                       <div>
-                        <span className="font-medium">{s.total_count}</span>
-                        {s.fail_count > 0 && (
-                          <span className="ml-1 text-xs text-red-500">({s.fail_count} 失败)</span>
+                        <div>
+                          <span className="text-[10px] text-muted-foreground">任务: </span>
+                          <span className="font-medium">{taskCount}</span>
+                          {taskFailCount > 0 && (
+                            <span className="ml-1 text-xs text-red-500">({taskFailCount} 失败)</span>
+                          )}
+                        </div>
+                        {isSharedChannel && channelStat && (
+                          <div className="text-[10px] text-muted-foreground">
+                            渠道合计: {channelStat.total_count}
+                          </div>
                         )}
+                      </div>
+                    ) : channelStat ? (
+                      <div>
+                        {isSharedChannel && (
+                          <div className="text-[10px] text-muted-foreground">任务: -</div>
+                        )}
+                        <div className="text-[10px] text-muted-foreground">
+                          渠道合计: <span className="font-medium text-foreground text-sm">{channelStat.total_count}</span>
+                          {channelStat.fail_count > 0 && (
+                            <span className="ml-1 text-red-500">({channelStat.fail_count} 失败)</span>
+                          )}
+                        </div>
                       </div>
                     ) : (
                       <span className="text-xs text-muted-foreground">-</span>
                     )}
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap">
-                    {s?.last_sent_at ? (
-                      <span className="text-xs">{formatDateTime(s.last_sent_at)}</span>
+                    {taskLastSent ? (
+                      <span className="text-xs">{formatDateTime(taskLastSent)}</span>
+                    ) : channelStat?.last_sent_at ? (
+                      <div>
+                        <span className="text-xs">{formatDateTime(channelStat.last_sent_at)}</span>
+                        <div className="text-[10px] text-muted-foreground">渠道合计</div>
+                      </div>
                     ) : (
                       <span className="text-xs text-muted-foreground">-</span>
                     )}
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap">
-                    {s?.created_at ? (
-                      <span className="text-xs">{formatDateTime(s.created_at)}</span>
+                    {taskFirstSent ? (
+                      <span className="text-xs">{formatDateTime(taskFirstSent)}</span>
+                    ) : channelStat?.created_at ? (
+                      <span className="text-xs">{formatDateTime(channelStat.created_at)}</span>
                     ) : (
                       <span className="text-xs text-muted-foreground">-</span>
                     )}
@@ -749,6 +898,16 @@ function NotificationTaskList({ stats }: { stats?: NotificationStats[] }) {
           </tbody>
         </table>
       </div>
+
+      {logDialog.open && (
+        <NotificationLogDialog
+          open={logDialog.open}
+          onOpenChange={(open) => setLogDialog((prev) => ({ ...prev, open }))}
+          channelName={logDialog.channelName}
+          taskName={logDialog.taskName}
+          source={logDialog.source}
+        />
+      )}
     </div>
   );
 }
@@ -761,6 +920,7 @@ export default function MsgGateway() {
   const { data: providers, isLoading: providersLoading } = useProviders();
   const { data: providerTypes } = useProviderTypes();
   const { data: notifStats } = useNotificationStats();
+  const { data: srcStats } = useSourceStats();
   const reloadMsgGw = useReloadMsgGw();
   const deleteChannel = useDeleteChannel();
   const deleteProvider = useDeleteProvider();
@@ -856,7 +1016,7 @@ export default function MsgGateway() {
 
         {/* Tasks Tab */}
         <TabsContent value="tasks">
-          <NotificationTaskList stats={notifStats} />
+          <NotificationTaskList stats={notifStats} sourceStats={srcStats} />
         </TabsContent>
 
         {/* Channels Tab */}

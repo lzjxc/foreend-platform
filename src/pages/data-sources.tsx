@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import DOMPurify from 'dompurify';
 import { toast } from 'sonner';
@@ -134,9 +134,11 @@ function sanitizeHtml(html: string | null | undefined): string {
 interface BatchTaskStatusCardProps {
   task: BatchTagTask;
   argoStatus?: ArgoWorkflowStatus | null;
+  isStale?: boolean;
+  onDismiss?: () => void;
 }
 
-function BatchTaskStatusCard({ task, argoStatus }: BatchTaskStatusCardProps) {
+function BatchTaskStatusCard({ task, argoStatus, isStale, onDismiss }: BatchTaskStatusCardProps) {
   // Use Argo progress if available, otherwise fall back to database
   const argoProgress = argoStatus ? parseArgoProgress(argoStatus.progress) : null;
   // When Argo total is 0 (workflow not started yet), use database total_items
@@ -147,13 +149,14 @@ function BatchTaskStatusCard({ task, argoStatus }: BatchTaskStatusCardProps) {
     : 0;
 
   // Determine effective status based on Argo phase
-  const effectiveStatus = argoStatus?.phase === 'Running' ? 'running' :
+  const effectiveStatus = isStale ? 'stale' as const :
+    argoStatus?.phase === 'Running' ? 'running' :
     argoStatus?.phase === 'Succeeded' ? 'completed' :
     argoStatus?.phase === 'Failed' ? 'failed' :
     argoStatus?.phase === 'Pending' ? 'pending' :
     task.status;
 
-  const isRunning = effectiveStatus === 'running' || effectiveStatus === 'pending';
+  const isRunning = !isStale && (effectiveStatus === 'running' || effectiveStatus === 'pending');
 
   const getStatusIcon = () => {
     switch (effectiveStatus) {
@@ -163,6 +166,8 @@ function BatchTaskStatusCard({ task, argoStatus }: BatchTaskStatusCardProps) {
         return <XCircle className="h-5 w-5 text-red-500" />;
       case 'partial':
         return <AlertCircle className="h-5 w-5 text-yellow-500" />;
+      case 'stale':
+        return <AlertCircle className="h-5 w-5 text-orange-500" />;
       case 'running':
         return <Loader2 className="h-5 w-5 text-blue-500 animate-spin" />;
       default:
@@ -182,6 +187,8 @@ function BatchTaskStatusCard({ task, argoStatus }: BatchTaskStatusCardProps) {
         return '失败';
       case 'partial':
         return '部分完成';
+      case 'stale':
+        return '已超时';
       default:
         return String(effectiveStatus);
     }
@@ -197,6 +204,8 @@ function BatchTaskStatusCard({ task, argoStatus }: BatchTaskStatusCardProps) {
         return 'bg-yellow-100 text-yellow-800';
       case 'running':
         return 'bg-blue-100 text-blue-800';
+      case 'stale':
+        return 'bg-orange-100 text-orange-800';
       default:
         return 'bg-gray-100 text-gray-800';
     }
@@ -213,8 +222,23 @@ function BatchTaskStatusCard({ task, argoStatus }: BatchTaskStatusCardProps) {
               <span className="text-xs text-muted-foreground">(实时)</span>
             )}
           </div>
-          <Badge className={getStatusColor()}>{getStatusText()}</Badge>
+          <div className="flex items-center gap-2">
+            <Badge className={getStatusColor()}>{getStatusText()}</Badge>
+            {isStale && onDismiss && (
+              <Button variant="ghost" size="sm" className="h-6 px-2 text-xs text-orange-600 hover:text-orange-800" onClick={onDismiss}>
+                <X className="h-3 w-3 mr-1" />
+                忽略
+              </Button>
+            )}
+          </div>
         </div>
+
+        {/* Stale warning */}
+        {isStale && (
+          <div className="mb-3 text-sm p-2 rounded bg-orange-50 text-orange-700">
+            该任务已超时未启动（Argo Workflow 未创建），不会阻止新的打标操作。点击「忽略」可隐藏此卡片。
+          </div>
+        )}
 
         {/* Progress bar */}
         <div className="mb-3">
@@ -476,10 +500,25 @@ function StatsOverview() {
   // Determine if the task is truly active (considering Argo terminal states)
   // If Argo says Failed/Succeeded/Error, the task is no longer active even if DB hasn't caught up
   const isArgoTerminal = argoStatus?.phase === 'Failed' || argoStatus?.phase === 'Succeeded' || argoStatus?.phase === 'Error';
-  const activeTask = dbActiveTask && !isArgoTerminal ? dbActiveTask : null;
 
-  // The most recent task for display (active or just-finished)
-  const displayTask = dbActiveTask;
+  // Detect stale pending tasks: pending > 10 min with no Argo workflow
+  const STALE_THRESHOLD_MS = 10 * 60 * 1000; // 10 minutes
+  const isStaleTask = !!(dbActiveTask
+    && dbActiveTask.status === 'pending'
+    && !argoStatus
+    && (Date.now() - new Date(dbActiveTask.created_at).getTime()) > STALE_THRESHOLD_MS);
+
+  // Allow dismissing stale tasks
+  const [dismissedTaskIds, setDismissedTaskIds] = useState<Set<string>>(new Set());
+  const handleDismissTask = useCallback((taskId: string) => {
+    setDismissedTaskIds(prev => new Set(prev).add(taskId));
+  }, []);
+
+  const isDismissed = dbActiveTask ? dismissedTaskIds.has(dbActiveTask.id) : false;
+  const activeTask = dbActiveTask && !isArgoTerminal && !isStaleTask && !isDismissed ? dbActiveTask : null;
+
+  // The most recent task for display (active or just-finished, unless dismissed)
+  const displayTask = dbActiveTask && !isDismissed ? dbActiveTask : null;
 
   // Get recent tasks (last 5)
   const recentTasks = useMemo(() => {
@@ -537,26 +576,54 @@ function StatsOverview() {
     if (dbActiveTask && isArgoTerminal && pollingEnabled) {
       const currentRunning = batchQueue.find((q) => q.status === 'running');
 
+      // Guard: only process if the terminal Argo status belongs to this queue item's backend task
+      if (!currentRunning || currentRunning.id === lastCompletedId) return;
+      if (currentRunning.backendTaskId && currentRunning.backendTaskId !== dbActiveTask.llm_gateway_task_id) return;
+
       if (argoStatus?.phase === 'Succeeded') {
         toast.success(`打标任务完成: ${dbActiveTask.completed_items} 条数据已处理`);
-        if (currentRunning && currentRunning.id !== lastCompletedId) {
-          queueActions.setLastCompletedId(currentRunning.id);
-          queueActions.markCompleted(currentRunning.id, dbActiveTask.completed_items);
-        }
+        queueActions.setLastCompletedId(currentRunning.id);
+        queueActions.markCompleted(currentRunning.id, dbActiveTask.completed_items);
       } else {
         toast.error(`打标任务失败: ${argoStatus?.message || dbActiveTask.error_message || '未知错误'}，已暂停队列`);
-        if (currentRunning && currentRunning.id !== lastCompletedId) {
-          queueActions.setLastCompletedId(currentRunning.id);
-          queueActions.markFailedAndCancelRemaining(
-            currentRunning.id,
-            argoStatus?.message || '未知错误'
-          );
-        }
+        queueActions.setLastCompletedId(currentRunning.id);
+        queueActions.markFailedAndCancelRemaining(
+          currentRunning.id,
+          argoStatus?.message || '未知错误'
+        );
       }
       refetchStats();
       refetchBatchTasks();
     }
   }, [dbActiveTask, isArgoTerminal, argoStatus, pollingEnabled, batchQueue, lastCompletedId, queueActions, refetchStats, refetchBatchTasks]);
+
+  // Handle "orphaned" running queue items: the DB already updated the task to
+  // completed/failed (via Argo callback) before the frontend could observe
+  // the Argo terminal state. This happens when dbActiveTask no longer points to
+  // the running batch's task (it might be null, or pointing to an unrelated stale task).
+  // Look up the task by backendTaskId in the full task list and sync the queue status.
+  useEffect(() => {
+    if (!pollingEnabled || !batchTasksData?.tasks) return;
+    const currentRunning = batchQueue.find((q) => q.status === 'running');
+    if (!currentRunning || !currentRunning.backendTaskId || currentRunning.id === lastCompletedId) return;
+    // Only act when there's no relevant active task (activeTask filters out stale/dismissed tasks)
+    if (activeTask) return;
+
+    const dbTask = batchTasksData.tasks.find((t) => t.llm_gateway_task_id === currentRunning.backendTaskId);
+    if (!dbTask) return;
+
+    if (dbTask.status === 'completed') {
+      toast.success(`打标任务完成: ${dbTask.completed_items} 条数据已处理`);
+      queueActions.setLastCompletedId(currentRunning.id);
+      queueActions.markCompleted(currentRunning.id, dbTask.completed_items);
+      refetchStats();
+    } else if (dbTask.status === 'failed') {
+      toast.error(`打标任务失败: ${dbTask.error_message || '未知错误'}，已暂停队列`);
+      queueActions.setLastCompletedId(currentRunning.id);
+      queueActions.markFailedAndCancelRemaining(currentRunning.id, dbTask.error_message || '未知错误');
+      refetchStats();
+    }
+  }, [batchTasksData, activeTask, pollingEnabled, batchQueue, lastCompletedId, queueActions, refetchStats]);
 
   // Also handle DB status changes for completed/failed (non-queue single tasks)
   useEffect(() => {
@@ -573,16 +640,20 @@ function StatsOverview() {
     }
   }, [recentTasks, pollingEnabled, refetchStats, batchQueue.length]);
 
+  // Use ref to avoid the auto-trigger timer being reset when submitNextBatch is recreated
+  const submitNextBatchRef = useRef(submitNextBatch);
+  submitNextBatchRef.current = submitNextBatch;
+
   // Auto-trigger next batch when current one completes
   useEffect(() => {
     const hasRunning = batchQueue.some((q) => q.status === 'running');
     const hasPending = batchQueue.some((q) => q.status === 'pending');
     if (!hasRunning && hasPending && !activeTask) {
       // Small delay to avoid race conditions with Argo status updates
-      const timer = setTimeout(() => submitNextBatch(), 2000);
+      const timer = setTimeout(() => submitNextBatchRef.current(), 2000);
       return () => clearTimeout(timer);
     }
-  }, [batchQueue, activeTask, submitNextBatch]);
+  }, [batchQueue, activeTask]);
 
   const handleCollect = async () => {
     try {
@@ -735,7 +806,12 @@ function StatsOverview() {
 
       {/* Active or just-finished Batch Task Status */}
       {displayTask && (
-        <BatchTaskStatusCard task={displayTask} argoStatus={argoStatus} />
+        <BatchTaskStatusCard
+          task={displayTask}
+          argoStatus={argoStatus}
+          isStale={isStaleTask && displayTask.id === dbActiveTask?.id}
+          onDismiss={() => handleDismissTask(displayTask.id)}
+        />
       )}
 
       {/* Recent Batch Tasks (collapsed) - only show when no displayTask */}

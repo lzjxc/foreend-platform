@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { Wand2, Copy, Check, Loader2, ChevronDown, ChevronUp, Sparkles } from 'lucide-react';
+import { Wand2, Copy, Check, Loader2, ChevronDown, ChevronUp, Sparkles, ImageIcon, Download, Code2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import {
@@ -9,7 +9,7 @@ import {
   SelectContent,
   SelectItem,
 } from '@/components/ui/select';
-import { usePresets, useGeneratePrompt } from '@/hooks/use-design-image';
+import { usePresets, useGeneratePrompt, useGenerateImage } from '@/hooks/use-design-image';
 import { buildStreamUrl } from '@/api/design-image';
 import type {
   GameGenre,
@@ -18,6 +18,7 @@ import type {
   TargetTool,
   GenerateRequest,
   GenerateResponse,
+  ImageGenerateResponse,
 } from '@/types/design-image';
 import {
   GAME_GENRE_LABELS,
@@ -211,12 +212,15 @@ export default function GameDevArt2DGenerator() {
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamedText, setStreamedText] = useState('');
   const [result, setResult] = useState<GenerateResponse | null>(null);
+  const [imageResult, setImageResult] = useState<ImageGenerateResponse | null>(null);
+  const [showCode, setShowCode] = useState(false);
   const esRef = useRef<EventSource | null>(null);
   const outputRef = useRef<HTMLDivElement>(null);
 
   // hooks
   const { data: presets } = usePresets();
   const generateMutation = useGeneratePrompt();
+  const imageMutation = useGenerateImage();
 
   // reset params when content_type changes
   useEffect(() => {
@@ -296,6 +300,34 @@ export default function GameDevArt2DGenerator() {
       }
     };
   }, [buildRequest, generateMutation, isStreaming]);
+
+  const handleGenerateImage = useCallback(() => {
+    const req = buildRequest();
+    setImageResult(null);
+    setShowCode(false);
+    imageMutation.mutate(
+      {
+        project_context: req.project_context,
+        content_type: req.content_type,
+        art_style: req.art_style,
+        params: req.params,
+        width: artStyle.startsWith('pixel16') ? 16 : artStyle.startsWith('pixel64') ? 64 : 256,
+        height: artStyle.startsWith('pixel16') ? 16 : artStyle.startsWith('pixel64') ? 64 : 256,
+      },
+      {
+        onSuccess: (data) => setImageResult(data),
+        onError: () => toast.error('图片生成失败'),
+      }
+    );
+  }, [buildRequest, imageMutation, artStyle]);
+
+  const handleDownloadImage = useCallback(() => {
+    if (!imageResult) return;
+    const link = document.createElement('a');
+    link.href = `data:image/png;base64,${imageResult.image_base64}`;
+    link.download = `game-art-${imageResult.metadata.content_type}-${Date.now()}.png`;
+    link.click();
+  }, [imageResult]);
 
   // cleanup on unmount
   useEffect(() => {
@@ -473,7 +505,7 @@ export default function GameDevArt2DGenerator() {
       {/* ---- RIGHT PANEL: Output ---- */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Generate button */}
-        <div className="mb-4">
+        <div className="mb-4 flex flex-col gap-2">
           <Button
             size="lg"
             onClick={handleGenerate}
@@ -489,6 +521,25 @@ export default function GameDevArt2DGenerator() {
               <>
                 <Wand2 className="mr-2 h-4 w-4" />
                 生成 Prompt
+              </>
+            )}
+          </Button>
+          <Button
+            size="lg"
+            variant="outline"
+            onClick={handleGenerateImage}
+            disabled={isStreaming || imageMutation.isPending}
+            className="w-full border-emerald-500/50 text-emerald-400 hover:bg-emerald-500/10"
+          >
+            {imageMutation.isPending ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                生成中...
+              </>
+            ) : (
+              <>
+                <ImageIcon className="mr-2 h-4 w-4" />
+                生成像素图
               </>
             )}
           </Button>
@@ -570,6 +621,73 @@ export default function GameDevArt2DGenerator() {
                 <span>{result.metadata.content_type} / {result.metadata.art_style}</span>
                 <span>|</span>
                 <span>{result.metadata.target_tool}</span>
+              </div>
+            </div>
+          )}
+
+          {/* Generated Image */}
+          {imageResult && (
+            <div className="space-y-3">
+              {/* Image display */}
+              <div className="rounded-lg border bg-card p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-emerald-400">
+                    生成的图片 ({imageResult.width}x{imageResult.height})
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setShowCode(!showCode)}
+                      className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs text-muted-foreground hover:bg-muted transition-colors"
+                    >
+                      <Code2 className="h-3 w-3" />
+                      {showCode ? '隐藏代码' : '查看代码'}
+                    </button>
+                    <button
+                      onClick={handleDownloadImage}
+                      className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs text-muted-foreground hover:bg-muted transition-colors"
+                    >
+                      <Download className="h-3 w-3" />
+                      下载
+                    </button>
+                  </div>
+                </div>
+                {/* Image with pixelated rendering for pixel art */}
+                <div className="flex justify-center bg-[#1a1a2e] rounded-lg p-4">
+                  <img
+                    src={`data:image/png;base64,${imageResult.image_base64}`}
+                    alt="Generated game art"
+                    className="border border-white/10"
+                    style={{
+                      imageRendering: 'pixelated',
+                      width: Math.max(imageResult.width * (imageResult.width <= 64 ? 4 : imageResult.width <= 128 ? 2 : 1), 128),
+                      height: Math.max(imageResult.height * (imageResult.height <= 64 ? 4 : imageResult.height <= 128 ? 2 : 1), 128),
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Code viewer */}
+              {showCode && (
+                <div className="rounded-lg border bg-card p-4 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium text-muted-foreground">LLM 生成的代码</span>
+                    <CopyButton text={imageResult.code} label="代码" />
+                  </div>
+                  <pre className="whitespace-pre-wrap text-xs leading-relaxed font-mono text-green-400/80 max-h-[300px] overflow-y-auto">
+                    {imageResult.code}
+                  </pre>
+                </div>
+              )}
+
+              {/* Metadata */}
+              <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                <span>尺寸: {imageResult.width}x{imageResult.height}</span>
+                <span>|</span>
+                <span>执行: {imageResult.metadata.exec_time_ms}ms</span>
+                <span>|</span>
+                <span>Tokens: {imageResult.metadata.tokens_used}</span>
+                <span>|</span>
+                <span>{imageResult.metadata.content_type} / {imageResult.metadata.art_style}</span>
               </div>
             </div>
           )}

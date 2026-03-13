@@ -1,4 +1,5 @@
-import { ClipboardList, CheckCheck, Trash2, Loader2 } from 'lucide-react';
+import { useMemo } from 'react';
+import { ClipboardList, CheckCheck, Trash2, Loader2, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PendingReviewCard } from './pending-review-card';
 import type { PendingReviewItem } from '@/types/homework';
@@ -34,6 +35,16 @@ export function PendingReviewList({
   isConfirmingAll = false,
   isClearingAll = false,
 }: PendingReviewListProps) {
+  const { gradedCount, failedCount, processingCount } = useMemo(() => {
+    let graded = 0, failed = 0, processing = 0;
+    for (const item of items) {
+      if (item.status === 'failed') failed++;
+      else if (item.status === 'processing' || item.status === 'pending') processing++;
+      else graded++;
+    }
+    return { gradedCount: graded, failedCount: failed, processingCount: processing };
+  }, [items]);
+
   if (items.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
@@ -54,6 +65,18 @@ export function PendingReviewList({
         <h3 className="font-medium flex items-center gap-2">
           <ClipboardList className="h-5 w-5" />
           待核查历史 ({items.length})
+          {failedCount > 0 && (
+            <span className="text-xs text-red-600 flex items-center gap-1">
+              <AlertTriangle className="h-3 w-3" />
+              {failedCount} 项失败
+            </span>
+          )}
+          {processingCount > 0 && (
+            <span className="text-xs text-blue-600 flex items-center gap-1">
+              <Loader2 className="h-3 w-3 animate-spin" />
+              {processingCount} 项处理中
+            </span>
+          )}
         </h3>
         <div className="flex items-center gap-2">
           <Button
@@ -77,7 +100,8 @@ export function PendingReviewList({
           <Button
             size="sm"
             onClick={onConfirmAll}
-            disabled={isConfirmingAll || isClearingAll || confirmingIds.size > 0}
+            disabled={isConfirmingAll || isClearingAll || confirmingIds.size > 0 || gradedCount === 0}
+            title={gradedCount === 0 ? '没有已批改完成的项目' : undefined}
           >
             {isConfirmingAll ? (
               <>

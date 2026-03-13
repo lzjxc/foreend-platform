@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { CheckCircle, XCircle, Trash2, Send, ZoomIn, RefreshCw, CheckCheck } from 'lucide-react';
+import { CheckCircle, XCircle, Trash2, Send, ZoomIn, RefreshCw, CheckCheck, AlertTriangle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
@@ -111,10 +111,13 @@ export function PendingReviewCard({
   }, [item]);
 
   const typeConfig = HOMEWORK_TYPE_CONFIG[item.homeworkType];
+  const isGraded = !item.status || item.status === 'graded';
+  const isFailed = item.status === 'failed';
+  const isProcessing = item.status === 'processing' || item.status === 'pending';
 
   return (
-    <Card className="overflow-hidden">
-      <CardHeader className="py-3 px-4 bg-muted/30">
+    <Card className={cn('overflow-hidden', isFailed && 'border-red-200 dark:border-red-900')}>
+      <CardHeader className={cn('py-3 px-4', isFailed ? 'bg-red-50/50 dark:bg-red-950/20' : isProcessing ? 'bg-blue-50/50 dark:bg-blue-950/20' : 'bg-muted/30')}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             {showTypeSelect && onTypeChange ? (
@@ -150,9 +153,21 @@ export function PendingReviewCard({
             <span className="text-sm text-muted-foreground">
               {item.homeworkDate}
             </span>
+            {isFailed && (
+              <Badge className="bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
+                <AlertTriangle className="h-3 w-3 mr-1" />
+                批改失败
+              </Badge>
+            )}
+            {isProcessing && (
+              <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                处理中
+              </Badge>
+            )}
           </div>
           <div className="flex items-center gap-2 text-sm">
-            {item.homeworkType === 'chinese' ? (
+            {isGraded && item.homeworkType === 'chinese' ? (
               <span
                 className={cn(
                   'font-medium',
@@ -161,7 +176,7 @@ export function PendingReviewCard({
               >
                 规范分: {accuracy.toFixed(1)}
               </span>
-            ) : (
+            ) : isGraded ? (
               <>
                 <span className="text-green-600 font-medium flex items-center gap-1">
                   <CheckCircle className="h-4 w-4" />
@@ -173,12 +188,40 @@ export function PendingReviewCard({
                 </span>
                 <span className="text-muted-foreground">({accuracy}%)</span>
               </>
-            )}
+            ) : null}
           </div>
         </div>
       </CardHeader>
 
       <CardContent className="p-4 space-y-4">
+        {/* 失败状态提示 */}
+        {isFailed && (
+          <div className="rounded-lg bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 p-3 space-y-2">
+            <div className="flex items-center gap-2 text-red-700 dark:text-red-400">
+              <AlertTriangle className="h-4 w-4 flex-shrink-0" />
+              <span className="text-sm font-medium">AI 批改失败</span>
+            </div>
+            {item.errorMessage && (
+              <p className="text-xs text-red-600 dark:text-red-400 break-all pl-6">
+                {item.errorMessage}
+              </p>
+            )}
+            <p className="text-xs text-muted-foreground pl-6">
+              可以点击类型标签重新选择类型并触发重新批改，或删除此项后重新上传
+            </p>
+          </div>
+        )}
+
+        {/* 处理中状态提示 */}
+        {isProcessing && (
+          <div className="rounded-lg bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 p-3">
+            <div className="flex items-center gap-2 text-blue-700 dark:text-blue-400">
+              <Loader2 className="h-4 w-4 animate-spin flex-shrink-0" />
+              <span className="text-sm">正在等待 AI 批改，请稍候...</span>
+            </div>
+          </div>
+        )}
+
         {/* 原图预览 */}
         <div className="relative">
           <Dialog>
@@ -204,8 +247,8 @@ export function PendingReviewCard({
           </Dialog>
         </div>
 
-        {/* 识别结果 */}
-        {item.homeworkType === 'chinese' ? (
+        {/* 识别结果 - 仅在已批改状态显示 */}
+        {!isGraded ? null : item.homeworkType === 'chinese' ? (
           // 语文书写规范结果
           <div className="space-y-2">
             <div className="flex items-center justify-between">
@@ -336,10 +379,22 @@ export function PendingReviewCard({
           <Trash2 className="h-4 w-4 mr-1" />
           删除
         </Button>
+        {isFailed && onTypeChange && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowTypeSelect(true)}
+            disabled={isChangingType}
+          >
+            <RefreshCw className={cn('h-4 w-4 mr-1', isChangingType && 'animate-spin')} />
+            重新批改
+          </Button>
+        )}
         <Button
           size="sm"
           onClick={onConfirm}
-          disabled={isConfirming}
+          disabled={isConfirming || !isGraded}
+          title={!isGraded ? '等待批改完成后才能确认' : undefined}
         >
           <Send className="h-4 w-4 mr-1" />
           {isConfirming ? '提交中...' : '确认提交'}

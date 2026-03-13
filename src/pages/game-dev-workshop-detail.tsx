@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { toast } from 'sonner';
 import {
   useProject,
   useAnalyze,
@@ -69,13 +70,17 @@ export default function GameDevWorkshopDetail() {
 
   const handleSubmit = async () => {
     if (!userInput.trim() || analyzeMutation.isPending) return;
-    const result = await analyzeMutation.mutateAsync({
-      phase_id: currentPhase,
-      user_input: userInput.trim(),
-      ai_config_id: selectedConfig,
-    });
-    setLatestResult(result);
-    setUserInput('');
+    try {
+      const result = await analyzeMutation.mutateAsync({
+        phase_id: currentPhase,
+        user_input: userInput.trim(),
+        ai_config_id: selectedConfig,
+      });
+      setLatestResult(result);
+      setUserInput('');
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'AI 分析失败，请稍后重试');
+    }
   };
 
   const handleSaveNote = () => {

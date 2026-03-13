@@ -426,18 +426,19 @@ export function useGradingQueue() {
     [store, queryClient]
   );
 
-  // 全部确认
+  // 全部确认（只提交已批改完成的项目）
   const confirmAllReviews = useCallback(async () => {
     const reviews = store.pendingReviews;
-    if (reviews.length === 0) {
-      toast.info('没有待核查项');
+    const gradedReviews = reviews.filter((r) => !r.status || r.status === 'graded');
+    if (gradedReviews.length === 0) {
+      toast.info('没有已批改完成的待核查项');
       return;
     }
 
     setIsConfirmingAll(true);
 
     try {
-      for (const review of reviews) {
+      for (const review of gradedReviews) {
         // 构建最终结果（合并用户编辑）
         const finalResults = (review.results || []).map((result, index) => ({
           index,
@@ -449,12 +450,13 @@ export function useGradingQueue() {
           submission_id: review.submissionId,
           results: finalResults,
         });
+        // 逐个从 store 移除已确认的
+        store.removeFromPendingReviews(review.id);
       }
 
-      store.clearPendingReviews();
       queryClient.invalidateQueries({ queryKey: ['recent-submissions'] });
       queryClient.invalidateQueries({ queryKey: ['homework', 'unconfirmed-submissions'] });
-      toast.success(`已提交 ${reviews.length} 项`);
+      toast.success(`已提交 ${gradedReviews.length} 项`);
     } catch (error: any) {
       const errorMessage = error?.response?.data?.message || '部分提交失败';
       toast.error(errorMessage);

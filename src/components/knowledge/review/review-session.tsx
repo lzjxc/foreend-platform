@@ -2,11 +2,10 @@ import { useState, useCallback } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useGenerateCard, useSubmitAnswer } from '@/hooks/use-review';
 import { ReviewQuestion } from './review-question';
-import { ReviewFeedback } from './review-feedback';
 import type { ReviewResult } from './review-summary';
-import type { ReviewAtom, ReviewCard, ReviewFeedback as ReviewFeedbackType, SelfRating } from '@/types/knowledge';
+import type { ReviewAtom, ReviewCard, ReviewFeedback as ReviewFeedbackType } from '@/types/knowledge';
 
-type SessionStep = 'loading' | 'question' | 'submitting' | 'feedback' | 'next';
+type SessionStep = 'loading' | 'question' | 'answered';
 
 // localStorage helpers for plan progress
 const PROGRESS_KEY_PREFIX = 'review-progress-';
@@ -81,16 +80,17 @@ export function ReviewSession({ atoms, planId, onFinish, onExit }: ReviewSession
     if (currentAtom) loadCard(currentAtom);
   });
 
-  // Rate and submit together
-  const handleRate = useCallback(
-    async (rating: SelfRating) => {
+  // Submit answer immediately (with default rating 'ok')
+  const handleAnswerSubmit = useCallback(
+    async (answer: string) => {
       if (!currentCard || !currentAtom) return;
+      setCurrentAnswer(answer);
 
       try {
         const feedback = await submitAnswer.mutateAsync({
           sessionId: currentCard.session_id,
-          answer: currentAnswer,
-          selfRating: rating,
+          answer,
+          selfRating: 'ok',
         });
 
         setCurrentFeedback(feedback);
@@ -115,23 +115,12 @@ export function ReviewSession({ atoms, planId, onFinish, onExit }: ReviewSession
           setStreak(0);
         }
 
-        setStep('next');
+        setStep('answered');
       } catch (e) {
         setError(e instanceof Error ? e.message : '提交失败');
       }
     },
-    [currentCard, currentAtom, currentAnswer, submitAnswer, planId]
-  );
-
-  // Actually submit answer and show feedback (step: submitting → feedback)
-  const handleAnswerSubmit = useCallback(
-    async (answer: string) => {
-      if (!currentCard) return;
-      setCurrentAnswer(answer);
-      setStep('feedback');
-      // We'll wait for user to self-rate, then submit both together via handleRate
-    },
-    [currentCard]
+    [currentCard, currentAtom, submitAnswer, planId]
   );
 
   // Next question
@@ -225,74 +214,27 @@ export function ReviewSession({ atoms, planId, onFinish, onExit }: ReviewSession
               key={`q-${currentCard.session_id}`}
               card={currentCard}
               onSubmit={handleAnswerSubmit}
+              isSubmitting={submitAnswer.isPending}
+            />
+          )}
+
+          {/* Answered — show question + user answer + correct answer */}
+          {step === 'answered' && currentCard && (
+            <ReviewQuestion
+              key={`a-${currentCard.session_id}`}
+              card={currentCard}
+              onSubmit={() => {}}
               isSubmitting={false}
+              answeredMode
+              userAnswer={currentAnswer}
+              correctAnswer={currentFeedback?.correct_answer}
+              isCorrect={currentFeedback?.is_correct}
+              onNext={handleNext}
+              isLastQuestion={currentIndex + 1 >= total}
+              onEndSession={handleEndSession}
+              streak={streak}
+              remainingCount={total - currentIndex - 1}
             />
-          )}
-
-          {/* Submitting */}
-          {step === 'submitting' && (
-            <motion.div
-              key="submitting"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="mx-auto max-w-2xl pt-12 text-center"
-            >
-              <span className="inline-block h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-              <p className="mt-3 text-sm text-muted-foreground">AI 正在评估...</p>
-            </motion.div>
-          )}
-
-          {/* Feedback */}
-          {step === 'feedback' && currentFeedback ? (
-            <ReviewFeedback
-              key={`f-${currentCard?.session_id}`}
-              feedback={currentFeedback}
-              onRate={handleRate}
-            />
-          ) : step === 'feedback' && !currentFeedback ? (
-            // Waiting for user to self-rate (feedback not yet fetched)
-            <ReviewFeedback
-              key={`f-pending-${currentCard?.session_id}`}
-              feedback={{ is_correct: true, feedback: '请先对自己的表现进行评估', updated_status: 'learning' }}
-              onRate={handleRate}
-            />
-          ) : null}
-
-          {/* Next */}
-          {step === 'next' && (
-            <motion.div
-              key="next"
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -12 }}
-              className="mx-auto max-w-md text-center"
-            >
-              {streak > 1 && (
-                <p className="mb-2 text-sm font-medium text-amber-600">
-                  连续答对 {streak} 次 &#128293;
-                </p>
-              )}
-              <p className="text-sm text-muted-foreground">
-                还有 {total - currentIndex - 1} 道题
-              </p>
-              <div className="mt-6 flex items-center justify-center gap-3">
-                <button
-                  onClick={handleNext}
-                  className="rounded-md bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
-                >
-                  {currentIndex + 1 >= total ? '查看总结' : '下一题'}
-                </button>
-                {currentIndex + 1 < total && (
-                  <button
-                    onClick={handleEndSession}
-                    className="rounded-md border border-border px-4 py-2.5 text-sm text-muted-foreground transition-colors hover:bg-accent"
-                  >
-                    结束本次复习
-                  </button>
-                )}
-              </div>
-            </motion.div>
           )}
         </AnimatePresence>
       </div>

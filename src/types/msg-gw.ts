@@ -89,3 +89,24 @@ export interface NotificationStats {
   last_error: string | null;
   created_at: string | null;
 }
+
+export interface SourceStats {
+  channel_name: string;
+  source: string;
+  total_count: number;
+  success_count: number;
+  fail_count: number;
+  last_sent_at: string | null;
+  first_sent_at: string | null;
+}
+
+export interface NotificationLogEntry {
+  id: string;
+  channel_name: string;
+  source: string | null;
+  title: string;
+  content_preview: string | null;
+  success: boolean;
+  error: string | null;
+  sent_at: string | null;
+}

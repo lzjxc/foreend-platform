@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import * as api from '@/api/design-image';
+import { generateImage } from '@/api/design-image';
 import type { GenerateRequest } from '@/types/design-image';
 
 export const designImageKeys = {
@@ -45,6 +46,16 @@ export function useDeleteHistory() {
     mutationFn: (id: string) => api.deleteHistory(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: designImageKeys.history() });
+    },
+  });
+}
+
+export function useGenerateImage() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: generateImage,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: designImageKeys.history() });
     },
   });
 }

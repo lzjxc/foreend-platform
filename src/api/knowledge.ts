@@ -250,6 +250,7 @@ export const knowledgeApi = {
     const { data } = await knowledgeClient.post<JobSubmitResponse>(
       '/api/v1/capture/upload',
       payload,
+      { timeout: 300000 }, // 5min for large PDF extraction
     );
     return data;
   },
@@ -261,6 +262,7 @@ export const knowledgeApi = {
     const { data } = await knowledgeClient.post<JobSubmitResponse>(
       '/api/v1/capture/tech-doc',
       { file_uri: fileUri },
+      { timeout: 300000 }, // 5min for large doc processing
     );
     return data;
   },
