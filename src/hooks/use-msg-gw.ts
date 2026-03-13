@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { providerApi, channelApi, msgGwAdminApi } from '@/api/msg-gw';
+import { providerApi, channelApi, msgGwAdminApi, statsApi } from '@/api/msg-gw';
 import type {
   CreateProviderInput, UpdateProviderInput,
   CreateChannelInput, UpdateChannelInput, ChannelTestInput,
@@ -11,6 +11,7 @@ export const msgGwKeys = {
   providerTypes: () => [...msgGwKeys.all, 'provider-types'] as const,
   channels: () => [...msgGwKeys.all, 'channels'] as const,
   health: () => [...msgGwKeys.all, 'health'] as const,
+  stats: () => [...msgGwKeys.all, 'stats'] as const,
 };
 
 // ==================== Provider hooks ====================
@@ -136,6 +137,16 @@ export function useMsgGwHealth() {
       return data;
     },
     refetchInterval: 30000,
+  });
+}
+
+export function useNotificationStats() {
+  return useQuery({
+    queryKey: msgGwKeys.stats(),
+    queryFn: async () => {
+      const { data } = await statsApi.list();
+      return data.data;
+    },
   });
 }
 

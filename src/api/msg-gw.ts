@@ -2,7 +2,7 @@ import { msgGwClient } from './client';
 import type {
   MsgGwProvider, CreateProviderInput, UpdateProviderInput,
   MsgGwChannel, CreateChannelInput, UpdateChannelInput,
-  ChannelTestInput, ProviderTypeInfo, MsgGwHealth,
+  ChannelTestInput, ProviderTypeInfo, MsgGwHealth, NotificationStats,
 } from '@/types/msg-gw';
 
 export const providerApi = {
@@ -27,4 +27,8 @@ export const channelApi = {
 export const msgGwAdminApi = {
   reload: () => msgGwClient.post('/api/v1/admin/reload'),
   health: () => msgGwClient.get<MsgGwHealth>('/health'),
+};
+
+export const statsApi = {
+  list: () => msgGwClient.get<{ success: boolean; data: NotificationStats[] }>('/api/v1/stats'),
 };

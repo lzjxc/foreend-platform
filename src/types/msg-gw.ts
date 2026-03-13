@@ -79,3 +79,13 @@ export interface MsgGwHealth {
   providers: Record<string, boolean>;
   telegram_polling: boolean;
 }
+
+export interface NotificationStats {
+  channel_name: string;
+  total_count: number;
+  success_count: number;
+  fail_count: number;
+  last_sent_at: string | null;
+  last_error: string | null;
+  created_at: string | null;
+}

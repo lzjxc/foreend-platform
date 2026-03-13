@@ -29,9 +29,12 @@ import {
   PowerOff,
   Loader2,
   AlertTriangle,
+  Clock,
+  Zap,
+  Bell,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { cn } from '@/lib/utils';
+import { cn, formatDateTime } from '@/lib/utils';
 import {
   useProviders,
   useProviderTypes,
@@ -45,6 +48,7 @@ import {
   useUpdateChannel,
   useDeleteChannel,
   useTestChannel,
+  useNotificationStats,
 } from '@/hooks/use-msg-gw';
 import type {
   MsgGwProvider,
@@ -54,6 +58,7 @@ import type {
   CreateChannelInput,
   UpdateChannelInput,
   ProviderTypeInfo,
+  NotificationStats,
 } from '@/types/msg-gw';
 
 // ==================== Constants ====================
@@ -562,6 +567,192 @@ function DeleteDialog({
   );
 }
 
+// ==================== Notification Tasks ====================
+
+interface NotificationTask {
+  name: string;
+  trigger: 'cron' | 'event';
+  schedule?: string;
+  channel: string;
+  providerType: string;
+  app: string;
+  purpose: string;
+}
+
+const NOTIFICATION_TASKS: NotificationTask[] = [
+  {
+    name: '金融日报',
+    trigger: 'cron',
+    schedule: '每天 10:00',
+    channel: 'finance-wecom',
+    providerType: 'wecom',
+    app: 'data-fetcher',
+    purpose: '每日金价、汇率(GBP/CNY, USD/CNY)走势汇总，下跌提醒',
+  },
+  {
+    name: '金融下跌提醒',
+    trigger: 'event',
+    channel: 'finance',
+    providerType: 'dingtalk',
+    app: 'data-fetcher',
+    purpose: '订阅品种连续下跌N天时，钉钉群告警',
+  },
+  {
+    name: 'Starling 交易提醒',
+    trigger: 'event',
+    channel: 'finance-wecom',
+    providerType: 'wecom',
+    app: 'finance-service',
+    purpose: '新交易入账时实时通知，含AI分析(商户/类型/异常检测)',
+  },
+  {
+    name: '作业周报',
+    trigger: 'cron',
+    schedule: '每周日 19:00',
+    channel: 'homework',
+    providerType: 'dingtalk',
+    app: 'homework-api',
+    purpose: '周作业统计: 提交数、正确率、常错题Top5',
+  },
+  {
+    name: '知识复习推送',
+    trigger: 'cron',
+    schedule: '每天 09:00',
+    channel: '钉钉互动卡片',
+    providerType: 'dingtalk',
+    app: 'knowledge-svc',
+    purpose: '每日推送5张间隔重复复习卡片，支持"知道/不知道"按钮互动',
+  },
+  {
+    name: 'AI 新闻日报',
+    trigger: 'cron',
+    schedule: '每天',
+    channel: 'ai-weekly',
+    providerType: 'dingtalk',
+    app: 'ai-weekly-api',
+    purpose: '每日AI/科技新闻摘要推送，周报含PDF下载',
+  },
+  {
+    name: '游戏新闻日报',
+    trigger: 'cron',
+    schedule: '每天',
+    channel: 'game-news',
+    providerType: 'dingtalk',
+    app: 'game-weekly-api',
+    purpose: '每日游戏行业新闻(产业/产品/市场/技术)，周报含PDF下载',
+  },
+  {
+    name: 'Argo 失败告警',
+    trigger: 'event',
+    channel: 'telegram',
+    providerType: 'telegram',
+    app: 'Argo Workflow',
+    purpose: 'CronWorkflow 执行失败时自动发送 Telegram 告警',
+  },
+  {
+    name: '邮件转发',
+    trigger: 'event',
+    channel: 'telegram',
+    providerType: 'telegram',
+    app: 'msg-gw (IMAP)',
+    purpose: 'IMAP 监听收件箱，新邮件自动转发到 Telegram',
+  },
+];
+
+function NotificationTaskList({ stats }: { stats?: NotificationStats[] }) {
+  const statsMap = new Map(stats?.map((s) => [s.channel_name, s]) || []);
+
+  return (
+    <div className="space-y-4">
+      <p className="text-sm text-muted-foreground">
+        共 {NOTIFICATION_TASKS.length} 个提醒任务
+      </p>
+      <div className="rounded-md border overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b bg-muted/50">
+              <th className="px-4 py-3 text-left font-medium">任务名</th>
+              <th className="px-4 py-3 text-left font-medium">触发方式</th>
+              <th className="px-4 py-3 text-left font-medium">渠道</th>
+              <th className="px-4 py-3 text-left font-medium">发送App</th>
+              <th className="px-4 py-3 text-left font-medium">用途</th>
+              <th className="px-4 py-3 text-right font-medium">通知次数</th>
+              <th className="px-4 py-3 text-left font-medium">最后通知</th>
+              <th className="px-4 py-3 text-left font-medium">首次记录</th>
+            </tr>
+          </thead>
+          <tbody>
+            {NOTIFICATION_TASKS.map((task) => {
+              const s = statsMap.get(task.channel);
+              return (
+                <tr key={task.name} className="border-b last:border-0 hover:bg-muted/30">
+                  <td className="px-4 py-3 font-medium whitespace-nowrap">
+                    <div className="flex items-center gap-2">
+                      <Bell className="h-4 w-4 text-muted-foreground" />
+                      {task.name}
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    {task.trigger === 'cron' ? (
+                      <div className="flex items-center gap-1.5">
+                        <Clock className="h-3.5 w-3.5 text-blue-500" />
+                        <span className="text-xs">{task.schedule}</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1.5">
+                        <Zap className="h-3.5 w-3.5 text-amber-500" />
+                        <span className="text-xs">事件触发</span>
+                      </div>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <div className="flex items-center gap-2">
+                      <Badge className={cn('border-0 text-[11px]', providerBadgeClass(task.providerType))}>
+                        {task.providerType}
+                      </Badge>
+                      <span className="text-xs text-muted-foreground">{task.channel}</span>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <code className="rounded bg-muted px-1.5 py-0.5 text-xs">{task.app}</code>
+                  </td>
+                  <td className="px-4 py-3 text-muted-foreground max-w-xs">{task.purpose}</td>
+                  <td className="px-4 py-3 text-right whitespace-nowrap">
+                    {s ? (
+                      <div>
+                        <span className="font-medium">{s.total_count}</span>
+                        {s.fail_count > 0 && (
+                          <span className="ml-1 text-xs text-red-500">({s.fail_count} 失败)</span>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">-</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    {s?.last_sent_at ? (
+                      <span className="text-xs">{formatDateTime(s.last_sent_at)}</span>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">-</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    {s?.created_at ? (
+                      <span className="text-xs">{formatDateTime(s.created_at)}</span>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">-</span>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 // ==================== Main Page ====================
 
 export default function MsgGateway() {
@@ -569,6 +760,7 @@ export default function MsgGateway() {
   const { data: channels, isLoading: channelsLoading } = useChannels();
   const { data: providers, isLoading: providersLoading } = useProviders();
   const { data: providerTypes } = useProviderTypes();
+  const { data: notifStats } = useNotificationStats();
   const reloadMsgGw = useReloadMsgGw();
   const deleteChannel = useDeleteChannel();
   const deleteProvider = useDeleteProvider();
@@ -655,11 +847,17 @@ export default function MsgGateway() {
       </div>
 
       {/* Tabs */}
-      <Tabs defaultValue="channels">
+      <Tabs defaultValue="tasks">
         <TabsList>
+          <TabsTrigger value="tasks">提醒任务</TabsTrigger>
           <TabsTrigger value="channels">渠道管理</TabsTrigger>
           <TabsTrigger value="providers">Provider 管理</TabsTrigger>
         </TabsList>
+
+        {/* Tasks Tab */}
+        <TabsContent value="tasks">
+          <NotificationTaskList stats={notifStats} />
+        </TabsContent>
 
         {/* Channels Tab */}
         <TabsContent value="channels">
