@@ -191,44 +191,132 @@
 
 | 文件 | 说明 |
 |------|------|
-| `src/api/life-app.ts` | life-app API 客户端函数 |
-| `src/types/life-app.ts` | TypeScript 类型定义 |
-| `src/hooks/use-life-app.ts` | React Query hooks（travel/rental/accommodation） |
-| `src/pages/life-landing.tsx` | Landing 页（3 模块卡片） |
-| `src/pages/life-travel.tsx` | 旅游计划列表 |
-| `src/pages/life-travel-detail.tsx` | 旅游计划详情（天数切换） |
-| `src/pages/life-rental.tsx` | 找房列表 + Sheet |
-| `src/pages/life-rental-detail.tsx` | 房源详情 |
-| `src/pages/life-accommodation.tsx` | 住宿列表 + Sheet + 比较 |
-| `src/pages/life-accommodation-detail.tsx` | 住宿详情 |
+| `src/types/life-app.ts` | TypeScript 类型定义（travel/rental/accommodation） |
+| `src/hooks/use-travel.ts` | 旅游计划 React Query hooks |
+| `src/hooks/use-rental.ts` | 找房 React Query hooks |
+| `src/hooks/use-accommodation.ts` | 住宿搜索 React Query hooks |
+| `src/pages/life/landing.tsx` | Landing 页（3 模块卡片） |
+| `src/pages/life/travel-list.tsx` | 旅游计划列表 |
+| `src/pages/life/travel-detail.tsx` | 旅游计划详情（天数切换） |
+| `src/pages/life/rental-list.tsx` | 找房列表 + Sheet |
+| `src/pages/life/rental-detail.tsx` | 房源详情 |
+| `src/pages/life/accommodation-list.tsx` | 住宿列表 + Sheet + 比较 Dialog |
+| `src/pages/life/accommodation-detail.tsx` | 住宿详情 |
+| `src/components/ui/tag-input.tsx` | TagInput 组件（城市/年龄标签输入） |
 
 ### 修改文件
 
 | 文件 | 变更 |
 |------|------|
-| `src/api/client.ts` | 新增 `lifeAppClient` |
+| `src/api/client.ts` | 新增 `lifeAppClient`（120s timeout） |
 | `src/App.tsx` | 新增 `/life/*` 路由 |
-| `src/components/layout/sidebar.tsx` | 新增「生活助手」导航项 |
+| `src/components/layout/sidebar.tsx` | 新增「生活助手」导航项（游戏开发之后） |
 | `vite.config.ts` | 新增 `/life-api` 代理 |
-| `nginx.conf` | 新增 `/life-api/` 反向代理 |
+| `nginx.conf` | 新增 `/life-api/` 反向代理（含 300s timeout） |
+
+## 代理配置
+
+### vite.config.ts（开发代理）
+
+```typescript
+'/life-api': {
+  target: 'http://192.168.1.191:32009',
+  changeOrigin: true,
+  rewrite: (p) => p.replace(/^\/life-api/, ''),
+},
+```
+
+### nginx.conf（生产代理）
+
+```nginx
+location /life-api/ {
+    proxy_pass http://life-app.apps.svc.cluster.local:8000/;
+    proxy_read_timeout 300s;   # 异步搜索可能需要较长时间
+    proxy_send_timeout 300s;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+}
+```
+
+## API 客户端
+
+```typescript
+// src/api/client.ts 新增
+export const lifeAppClient = createApiClient('/life-api', false, 120000);  // 2min timeout
+```
+
+## Hooks 文件拆分
+
+按模块拆分为 3 个文件（与 codebase 中 use-game-design.ts / use-game-workshop.ts 模式一致）：
+
+| 文件 | 内容 |
+|------|------|
+| `src/hooks/use-travel.ts` | 旅游计划 CRUD + 轮询 + 导出 |
+| `src/hooks/use-rental.ts` | 找房搜索 + 房源列表/详情 |
+| `src/hooks/use-accommodation.ts` | 住宿搜索 + 列表/详情 + 比较 |
+
+## 页面文件组织
+
+放在 `src/pages/life/` 子目录下：
+
+```
+src/pages/life/
+├── landing.tsx
+├── travel-list.tsx
+├── travel-detail.tsx
+├── rental-list.tsx
+├── rental-detail.tsx
+├── accommodation-list.tsx
+└── accommodation-detail.tsx
+```
 
 ## 异步搜索轮询模式
 
 旅游计划、找房、住宿搜索都是异步操作。统一轮询模式：
 
 ```typescript
-// 提交搜索 → 获取 task_id → 轮询结果
-const { mutateAsync: createSearch } = useCreateSearch();
-const result = await createSearch(params);  // 202 + { id, status: "pending" }
-
-// 轮询 hook（refetchInterval 自动轮询）
-const { data } = useSearchResult(result.id, {
-  refetchInterval: (data) =>
-    data?.status === 'completed' || data?.status === 'failed'
+// React Query v5 refetchInterval 签名：query => number | false
+const { data } = useSearchResult(resultId, {
+  refetchInterval: (query) => {
+    const status = query.state.data?.status;
+    return status === 'completed' || status === 'failed'
       ? false   // 停止轮询
-      : 3000,   // 每 3 秒轮询
+      : 3000;   // 每 3 秒轮询
+  },
 });
 ```
+
+**列表页轮询**：列表页不轮询。提交搜索后通过 `onSuccess` 跳转到列表页，列表页用 `invalidateQueries` 刷新。用户可手动点击 pending 状态的卡片进入详情页查看进度。
+
+## 侧边栏位置
+
+「生活助手」插入在「游戏开发」之后、「家庭成员」之前。图标 `Compass`。
+
+## Landing 统计数据
+
+Landing 页卡片上的统计数字（如 "2 个计划"）从各模块列表接口获取：
+- `GET /api/v1/travel/plans?page=1&page_size=1` → `total`
+- `GET /api/v1/rental/properties?page=1&page_size=1` → `total`
+- `GET /api/v1/accommodation/listings?page=1&page_size=1` → `total`
+
+## 比较功能
+
+住宿比较使用 **Dialog 弹窗**（不跳转页面），表格对比选中的住宿。
+
+## Markdown 导出
+
+`GET /api/v1/travel/plans/{id}/export` 返回 `text/markdown` 内容。前端创建 Blob 下载为 `.md` 文件。如果计划状态不是 `completed`，按钮禁用。
+
+## 空状态
+
+所有列表页在无数据时显示引导性空状态：
+- 旅游计划：「还没有旅行计划，点击上方按钮创建第一个计划」
+- 找房：「还没有搜索记录，点击上方按钮开始搜索房源」
+- 住宿：「还没有住宿记录，点击上方按钮搜索住宿」
+
+## TagInput 组件
+
+新建计划表单中「途经城市」「儿童年龄」需要 TagInput 组件（输入后按回车添加标签）。项目中暂无此组件，需新建 `src/components/ui/tag-input.tsx`。
 
 ## Overview 卡片
 
