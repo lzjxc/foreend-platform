@@ -54,6 +54,11 @@ interface ChartPoint {
   count: number;
 }
 
+interface HealthItem {
+  name: string;
+  status: 'loading' | 'error' | 'success';
+}
+
 // ==================== Helpers ====================
 
 function formatRelativeTime(time?: string | null): string {
@@ -431,26 +436,23 @@ function SpecsCard() {
   );
 }
 
-function HealthCard() {
-  const services = [
-    { name: '消息网关' },
-    { name: '定时任务' },
-    { name: '知识库' },
-    { name: '作业助手' },
-    { name: '开发追踪' },
-  ];
-
+function HealthCard({ items }: { items: HealthItem[] }) {
   return (
     <StatCard icon={HeartPulse} title="服务健康" iconColor="bg-rose-500">
-      <div className="flex flex-wrap gap-1">
-        {services.map((s) => (
-          <Badge key={s.name} variant="outline" className="text-xs px-1.5 py-0">
-            {s.name}
-          </Badge>
+      <div className="flex flex-wrap gap-2">
+        {items.map((s) => (
+          <div key={s.name} className="flex items-center gap-1.5">
+            <div
+              className={cn(
+                'h-2 w-2 rounded-full',
+                s.status === 'success' && 'bg-green-500',
+                s.status === 'error' && 'bg-red-500',
+                s.status === 'loading' && 'bg-gray-400 animate-pulse',
+              )}
+            />
+            <span className="text-xs text-muted-foreground">{s.name}</span>
+          </div>
         ))}
-      </div>
-      <div className="text-xs text-muted-foreground mt-1">
-        数据来源于各卡片加载状态
       </div>
     </StatCard>
   );
@@ -469,6 +471,30 @@ export function SystemOverview() {
   const { min, max } = getDateRange(days);
 
   const trendProps: TrendProps = { days, selectedDate, onDateClick: handleDateClick };
+
+  // Collect query statuses for HealthCard
+  // Note: these hooks share queryKeys with the ones inside each card component,
+  // so React Query deduplicates the requests automatically (same staleTime).
+  const msgGwQuery = useMsgGwStats();
+  const cronQuery = useCronSummary();
+  const knowledgeQuery = useKnowledgeStats();
+  const homeworkQuery = useHomeworkStats();
+  const devQuery = useDevTrackerOverview();
+  const sessionsQuery = useDevTrackerSessions();
+  const specsQuery = useDevTrackerSpecs();
+
+  const toStatus = (q: { isLoading: boolean; isError: boolean }) =>
+    q.isLoading ? 'loading' as const : q.isError ? 'error' as const : 'success' as const;
+
+  const healthItems: HealthItem[] = [
+    { name: '消息网关', status: toStatus(msgGwQuery) },
+    { name: '定时任务', status: toStatus(cronQuery) },
+    { name: '知识库', status: toStatus(knowledgeQuery) },
+    { name: '作业助手', status: toStatus(homeworkQuery) },
+    { name: '开发追踪', status: toStatus(devQuery) },
+    { name: 'Sessions', status: toStatus(sessionsQuery) },
+    { name: 'Specs', status: toStatus(specsQuery) },
+  ];
 
   return (
     <div className="space-y-4">
@@ -522,8 +548,8 @@ export function SystemOverview() {
         </div>
       </div>
 
-      {/* 2x4 grid: all 8 cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+      {/* 4x2 grid: all 8 cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <MsgGwCard {...trendProps} />
         <CronCard {...trendProps} />
         <KnowledgeCard {...trendProps} />
@@ -531,7 +557,7 @@ export function SystemOverview() {
         <DevActivityCard {...trendProps} />
         <SessionsCard />
         <SpecsCard />
-        <HealthCard />
+        <HealthCard items={healthItems} />
       </div>
     </div>
   );
