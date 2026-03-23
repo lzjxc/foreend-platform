@@ -277,7 +277,7 @@ export function useUploadCapture() {
 
       // Phase 1: Upload file to file-gateway (MinIO)
       setPhase('uploading');
-      const pathPrefix = mode === 'chapter' ? 'chapter-feed/' : 'book-import/';
+      const pathPrefix = mode === 'chapter' ? '章节投喂/' : '整书导入/';
       const fgResp = await uploadToFileGateway(request.file, 'knowledge', pathPrefix);
 
       // Phase 2: Submit file_uri to backend → poll

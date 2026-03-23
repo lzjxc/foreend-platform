@@ -36,7 +36,7 @@ export function useTechDocImport(): UseTechDocImportReturn {
 
       // 1. Upload ZIP to file-gateway (MinIO)
       setState('uploading');
-      const fgResp = await uploadToFileGateway(file, 'knowledge', 'tech-docs/');
+      const fgResp = await uploadToFileGateway(file, 'knowledge', '技术文档/');
 
       // 2. Submit file_uri to knowledge-hub backend
       setState('submitting');

@@ -8,8 +8,6 @@ import {
   Monitor,
   FileText,
   HeartPulse,
-  CheckCircle2,
-  XCircle,
   CalendarDays,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
@@ -42,21 +40,35 @@ import { cn } from '@/lib/utils';
 
 // ==================== Types ====================
 
-interface TrendProps {
-  days: number;
-  selectedDate: string | null;
-  onDateClick: (date: string) => void;
+interface OverviewMetric {
+  key: string;
+  label: string;
+  value: number | string;
+  type: 'count' | 'badge';
+  color?: 'green' | 'red' | 'blue' | 'orange' | 'default';
+}
+
+interface OverviewCardData {
+  service_id: string;
+  title: string;
+  icon: React.ElementType;
+  icon_color: string;
+  total: number;
+  total_label: string;
+  last_activity_at: string | null;
+  metrics: OverviewMetric[];
+  trend: Record<string, number>;
+}
+
+interface HealthItem {
+  name: string;
+  status: 'loading' | 'error' | 'success';
 }
 
 interface ChartPoint {
   date: string;
   label: string;
   count: number;
-}
-
-interface HealthItem {
-  name: string;
-  status: 'loading' | 'error' | 'success';
 }
 
 // ==================== Helpers ====================
@@ -78,11 +90,7 @@ function formatRelativeTime(time?: string | null): string {
 function trendToChartData(trend: Record<string, number>): ChartPoint[] {
   return Object.entries(trend)
     .sort(([a], [b]) => a.localeCompare(b))
-    .map(([date, count]) => ({
-      date,
-      label: date.slice(5),
-      count,
-    }));
+    .map(([date, count]) => ({ date, label: date.slice(5), count }));
 }
 
 function getDateRange(days: number): { min: string; max: string } {
@@ -93,41 +101,58 @@ function getDateRange(days: number): { min: string; max: string } {
   return { min: min.toISOString().slice(0, 10), max };
 }
 
-// ==================== Shared Components ====================
+const colorMap: Record<string, string> = {
+  green: 'text-green-600',
+  red: 'text-red-500',
+  blue: 'text-blue-600',
+  orange: 'text-orange-500',
+};
 
-function StatCard({
-  icon: Icon,
-  title,
-  children,
-  isLoading,
-  iconColor,
-  dayValue,
+// ==================== Generic OverviewCard ====================
+
+function OverviewCard({
+  data,
   selectedDate,
-  lastActivityAt,
+  dayValue,
 }: {
-  icon: React.ElementType;
-  title: string;
-  children: React.ReactNode;
-  isLoading?: boolean;
-  iconColor?: string;
-  dayValue?: number | null;
-  selectedDate?: string | null;
-  lastActivityAt?: string | null;
+  data: OverviewCardData;
+  selectedDate: string | null;
+  dayValue: number | null;
 }) {
+  const Icon = data.icon;
+  const chartData = trendToChartData(data.trend);
+  // Map tailwind color name to hex for recharts
+  const colorHexMap: Record<string, string> = {
+    'bg-blue-500': '#3b82f6',
+    'bg-orange-500': '#f97316',
+    'bg-purple-500': '#a855f7',
+    'bg-green-500': '#22c55e',
+    'bg-indigo-500': '#6366f1',
+    'bg-cyan-500': '#06b6d4',
+    'bg-amber-500': '#f59e0b',
+  };
+  const chartColor = colorHexMap[data.icon_color] || '#6366f1';
+
+  // Group badge metrics together
+  const countMetrics = data.metrics.filter((m) => m.type === 'count');
+  const badgeMetrics = data.metrics.filter((m) => m.type === 'badge');
+
   return (
     <Card>
       <CardContent className="p-4">
+        {/* Header: icon + title + service_id + lastActivityAt */}
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
-            <div className={cn('rounded-lg p-1.5', iconColor || 'bg-primary/10')}>
-              <Icon className={cn('h-4 w-4', iconColor ? 'text-white' : 'text-primary')} />
+            <div className={cn('rounded-lg p-1.5', data.icon_color)}>
+              <Icon className="h-4 w-4 text-white" />
             </div>
-            <span className="text-sm font-medium text-muted-foreground">{title}</span>
+            <span className="text-sm font-medium text-muted-foreground">{data.title}</span>
+            <span className="text-xs text-muted-foreground/50">{data.service_id}</span>
           </div>
           <div className="flex items-center gap-2">
-            {lastActivityAt !== undefined && (
+            {data.last_activity_at !== undefined && (
               <span className="text-xs text-muted-foreground">
-                {formatRelativeTime(lastActivityAt)}
+                {formatRelativeTime(data.last_activity_at)}
               </span>
             )}
             {selectedDate && dayValue != null && (
@@ -137,280 +162,273 @@ function StatCard({
             )}
           </div>
         </div>
-        {isLoading ? (
-          <div className="text-sm text-muted-foreground">加载中...</div>
-        ) : (
-          <div className="space-y-1.5">{children}</div>
-        )}
+
+        <div className="space-y-1.5">
+          {/* Primary stat: total_label + total */}
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-muted-foreground">{data.total_label}</span>
+            <span className="font-semibold text-base">{data.total.toLocaleString()}</span>
+          </div>
+
+          {/* Count metrics */}
+          {countMetrics.map((m) => (
+            <div key={m.key} className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">{m.label}</span>
+              <span className={cn('font-medium', m.color && colorMap[m.color])}>
+                {typeof m.value === 'number' ? m.value.toLocaleString() : m.value}
+              </span>
+            </div>
+          ))}
+
+          {/* Badge metrics */}
+          {badgeMetrics.length > 0 && (
+            <div className="flex flex-wrap gap-1 pt-0.5">
+              {badgeMetrics.map((m) => (
+                <Badge key={m.key} variant="secondary" className="text-xs px-1.5 py-0">
+                  {m.label} {m.value}
+                </Badge>
+              ))}
+            </div>
+          )}
+
+          {/* Trend chart */}
+          {chartData.length > 0 && (
+            <div className="mt-2 -mx-1">
+              <ResponsiveContainer width="100%" height={40}>
+                <AreaChart
+                  data={chartData}
+                  margin={{ top: 2, right: 2, bottom: 0, left: 2 }}
+                  style={{ cursor: 'pointer' }}
+                >
+                  <defs>
+                    <linearGradient id={`trend-${data.service_id}`} x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor={chartColor} stopOpacity={0.3} />
+                      <stop offset="100%" stopColor={chartColor} stopOpacity={0.05} />
+                    </linearGradient>
+                  </defs>
+                  <XAxis dataKey="date" hide />
+                  <Tooltip
+                    contentStyle={{
+                      background: 'hsl(var(--card))',
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '6px',
+                      fontSize: '11px',
+                      padding: '4px 8px',
+                    }}
+                    labelFormatter={(v) => String(v).slice(5)}
+                    formatter={(value: number) => [`${value}`, '']}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="count"
+                    stroke={chartColor}
+                    strokeWidth={1.5}
+                    fill={`url(#trend-${data.service_id})`}
+                    dot={false}
+                    activeDot={{ r: 3, fill: chartColor }}
+                  />
+                  {selectedDate && (
+                    <ReferenceLine x={selectedDate} stroke={chartColor} strokeDasharray="3 3" strokeWidth={1} />
+                  )}
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </div>
       </CardContent>
     </Card>
   );
 }
 
-function StatRow({ label, value, sub }: { label: string; value: React.ReactNode; sub?: string }) {
+function HealthCard({ items }: { items: HealthItem[] }) {
   return (
-    <div className="flex items-center justify-between text-sm">
-      <span className="text-muted-foreground">{label}</span>
-      <div className="flex items-center gap-1.5">
-        <span className="font-medium">{value}</span>
-        {sub && <span className="text-xs text-muted-foreground">{sub}</span>}
-      </div>
-    </div>
-  );
-}
-
-function MiniTrend({
-  data,
-  color,
-  selectedDate,
-  onDateClick,
-}: {
-  data: ChartPoint[];
-  color: string;
-  selectedDate: string | null;
-  onDateClick: (date: string) => void;
-}) {
-  const gradId = `trend-${color.replace('#', '')}`;
-  return (
-    <div className="mt-2 -mx-1">
-      <ResponsiveContainer width="100%" height={40}>
-        <AreaChart
-          data={data}
-          margin={{ top: 2, right: 2, bottom: 0, left: 2 }}
-          onClick={(e) => {
-            const date = e?.activePayload?.[0]?.payload?.date;
-            if (date) onDateClick(date);
-          }}
-          style={{ cursor: 'pointer' }}
-        >
-          <defs>
-            <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={color} stopOpacity={0.3} />
-              <stop offset="100%" stopColor={color} stopOpacity={0.05} />
-            </linearGradient>
-          </defs>
-          <XAxis dataKey="date" hide />
-          <Tooltip
-            contentStyle={{
-              background: 'hsl(var(--card))',
-              border: '1px solid hsl(var(--border))',
-              borderRadius: '6px',
-              fontSize: '11px',
-              padding: '4px 8px',
-            }}
-            labelFormatter={(v) => String(v).slice(5)}
-            formatter={(value: number) => [`${value}`, '']}
-          />
-          <Area
-            type="monotone"
-            dataKey="count"
-            stroke={color}
-            strokeWidth={1.5}
-            fill={`url(#${gradId})`}
-            dot={false}
-            activeDot={{ r: 3, fill: color }}
-          />
-          {selectedDate && (
-            <ReferenceLine
-              x={selectedDate}
-              stroke={color}
-              strokeDasharray="3 3"
-              strokeWidth={1}
-            />
-          )}
-        </AreaChart>
-      </ResponsiveContainer>
-    </div>
-  );
-}
-
-// ==================== Cards ====================
-
-function MsgGwCard({ days, selectedDate, onDateClick }: TrendProps) {
-  const { data, isLoading } = useMsgGwStats();
-  const { data: trend } = useMsgGwTrend(days);
-  const chartData = trend ? trendToChartData(trend) : [];
-  const dayValue = selectedDate && trend ? (trend[selectedDate] ?? 0) : null;
-
-  return (
-    <StatCard icon={MessageSquare} title="消息通知" isLoading={isLoading} iconColor="bg-blue-500" dayValue={dayValue} selectedDate={selectedDate} lastActivityAt={data?.lastSent}>
-      {data && (
-        <>
-          <StatRow
-            label="总发送"
-            value={
-              <span className="flex items-center gap-1">
-                {data.totalSent}
-                {data.totalFailed > 0 && (
-                  <span className="text-xs text-red-500">({data.totalFailed} 失败)</span>
-                )}
-              </span>
-            }
-          />
-          <StatRow label="渠道数" value={data.channelCount} />
-          {chartData.length > 0 && (
-            <MiniTrend data={chartData} color="#3b82f6" selectedDate={selectedDate} onDateClick={onDateClick} />
-          )}
-        </>
-      )}
-    </StatCard>
-  );
-}
-
-function CronCard({ days, selectedDate, onDateClick }: TrendProps) {
-  const { data, isLoading } = useCronSummary();
-  const { data: trend } = useCronTrend(days);
-  const chartData = trend ? trendToChartData(trend) : [];
-  const dayValue = selectedDate && trend ? (trend[selectedDate] ?? 0) : null;
-
-  return (
-    <StatCard icon={Timer} title="定时任务" isLoading={isLoading} iconColor="bg-orange-500" dayValue={dayValue} selectedDate={selectedDate} lastActivityAt={data?.lastActivityAt}>
-      {data && (
-        <>
-          <StatRow label="任务数" value={`${data.active} / ${data.total}`} sub="运行中" />
-          <StatRow
-            label="成功"
-            value={
-              <span className="flex items-center gap-1 text-green-600">
-                <CheckCircle2 className="h-3 w-3" />
-                {data.totalSucceeded.toLocaleString()}
-              </span>
-            }
-          />
-          <StatRow
-            label="失败"
-            value={
-              <span className="flex items-center gap-1 text-red-500">
-                <XCircle className="h-3 w-3" />
-                {data.totalFailed.toLocaleString()}
-              </span>
-            }
-          />
-          {chartData.length > 0 && (
-            <MiniTrend data={chartData} color="#f97316" selectedDate={selectedDate} onDateClick={onDateClick} />
-          )}
-        </>
-      )}
-    </StatCard>
-  );
-}
-
-function KnowledgeCard({ days, selectedDate, onDateClick }: TrendProps) {
-  const { data, isLoading } = useKnowledgeStats();
-  const { data: trend } = useKnowledgeTrend(days);
-  const chartData = trend ? trendToChartData(trend) : [];
-  const dayValue = selectedDate && trend ? (trend[selectedDate] ?? 0) : null;
-
-  return (
-    <StatCard icon={Brain} title="知识库" isLoading={isLoading} iconColor="bg-purple-500" dayValue={dayValue} selectedDate={selectedDate} lastActivityAt={data?.lastActivityAt}>
-      {data && (
-        <>
-          <StatRow label="原子总数" value={data.totalAtoms.toLocaleString()} />
-          <StatRow
-            label="复习状态"
-            value={
-              <span className="flex items-center gap-1.5">
-                <Badge variant="secondary" className="text-xs px-1.5 py-0">
-                  学习 {data.byStatus.learning}
-                </Badge>
-                <Badge variant="default" className="text-xs px-1.5 py-0">
-                  掌握 {data.byStatus.mastered}
-                </Badge>
-              </span>
-            }
-          />
-          {chartData.length > 0 && (
-            <MiniTrend data={chartData} color="#a855f7" selectedDate={selectedDate} onDateClick={onDateClick} />
-          )}
-        </>
-      )}
-    </StatCard>
-  );
-}
-
-function HomeworkCard({ days, selectedDate, onDateClick }: TrendProps) {
-  const { data, isLoading } = useHomeworkStats();
-  const { data: trend } = useHomeworkTrend(days);
-  const chartData = trend ? trendToChartData(trend) : [];
-  const dayValue = selectedDate && trend ? (trend[selectedDate] ?? 0) : null;
-
-  return (
-    <StatCard icon={BookOpen} title="作业助手" isLoading={isLoading} iconColor="bg-green-500" dayValue={dayValue} selectedDate={selectedDate} lastActivityAt={data?.lastSubmittedAt}>
-      {data && (
-        <>
-          <StatRow label="已提交" value={data.total} />
-          <StatRow label="已批改" value={data.graded} />
-          {chartData.length > 0 && (
-            <MiniTrend data={chartData} color="#22c55e" selectedDate={selectedDate} onDateClick={onDateClick} />
-          )}
-        </>
-      )}
-    </StatCard>
-  );
-}
-
-function DevActivityCard({ days, selectedDate, onDateClick }: TrendProps) {
-  const { data, isLoading } = useDevTrackerOverview();
-  const { data: trend } = useActivityTrend(days);
-  const chartData = trend ? trendToChartData(trend) : [];
-  const dayValue = selectedDate && trend ? (trend[selectedDate] ?? 0) : null;
-
-  return (
-    <StatCard icon={Code2} title="开发活动" isLoading={isLoading} iconColor="bg-indigo-500" dayValue={dayValue} selectedDate={selectedDate} lastActivityAt={data?.lastActivityAt}>
-      {data && (
-        <>
-          <StatRow label="本周活动" value={data.weekly_activities} />
-          <StatRow
-            label="Task 状态"
-            value={
-              <span className="flex items-center gap-1.5">
-                {Object.entries(data.tasks_by_status || {}).map(([status, count]) => (
-                  <Badge
-                    key={status}
-                    variant={status === 'in_progress' ? 'default' : 'secondary'}
-                    className="text-xs px-1.5 py-0"
-                  >
-                    {status === 'todo' ? '待办' : status === 'in_progress' ? '进行' : status} {count}
-                  </Badge>
-                ))}
-              </span>
-            }
-          />
-          {chartData.length > 0 && (
-            <MiniTrend data={chartData} color="#6366f1" selectedDate={selectedDate} onDateClick={onDateClick} />
-          )}
-        </>
-      )}
-    </StatCard>
-  );
-}
-
-function SessionsCard() {
-  const { data, isLoading } = useDevTrackerSessions();
-  return (
-    <StatCard icon={Monitor} title="Sessions" isLoading={isLoading} iconColor="bg-cyan-500">
-      {data && (
-        <>
-          <StatRow label="总会话" value={data.total} sub={`${data.completed} 完成`} />
-          <StatRow label="用户消息" value={data.total_user_messages.toLocaleString()} />
-          <div className="mt-1">
-            <span className="text-xs text-muted-foreground">Top 项目</span>
-            <div className="flex flex-wrap gap-1 mt-0.5">
-              {data.topProjects.map(([name, count]) => (
-                <Badge key={name} variant="outline" className="text-xs px-1.5 py-0">
-                  {name} ({count})
-                </Badge>
-              ))}
-            </div>
+    <Card>
+      <CardContent className="p-4">
+        <div className="flex items-center gap-2 mb-3">
+          <div className="rounded-lg p-1.5 bg-rose-500">
+            <HeartPulse className="h-4 w-4 text-white" />
           </div>
-        </>
-      )}
-    </StatCard>
+          <span className="text-sm font-medium text-muted-foreground">服务健康</span>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {items.map((s) => (
+            <div key={s.name} className="flex items-center gap-1.5">
+              <div
+                className={cn(
+                  'h-2 w-2 rounded-full',
+                  s.status === 'success' && 'bg-green-500',
+                  s.status === 'error' && 'bg-red-500',
+                  s.status === 'loading' && 'bg-gray-400 animate-pulse',
+                )}
+              />
+              <span className="text-xs text-muted-foreground">{s.name}</span>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
-function SpecsCard() {
-  const { data, isLoading } = useDevTrackerSpecs();
+// ==================== Data Transformers ====================
+
+function useMsgGwOverview(days: number): { data: OverviewCardData | null; isLoading: boolean; isError: boolean } {
+  const { data, isLoading, isError } = useMsgGwStats();
+  const { data: trend } = useMsgGwTrend(days);
+  if (!data) return { data: null, isLoading, isError };
+  return {
+    data: {
+      service_id: 'msg-gw',
+      title: '消息通知',
+      icon: MessageSquare,
+      icon_color: 'bg-blue-500',
+      total: data.totalSent,
+      total_label: '总发送',
+      last_activity_at: data.lastSent,
+      metrics: [
+        { key: 'channels', label: '渠道数', value: data.channelCount, type: 'count' },
+        ...(data.totalFailed > 0
+          ? [{ key: 'failed', label: '失败', value: data.totalFailed, type: 'count' as const, color: 'red' as const }]
+          : []),
+      ],
+      trend: trend || {},
+    },
+    isLoading,
+    isError,
+  };
+}
+
+function useCronOverview(days: number): { data: OverviewCardData | null; isLoading: boolean; isError: boolean } {
+  const { data, isLoading, isError } = useCronSummary();
+  const { data: trend } = useCronTrend(days);
+  if (!data) return { data: null, isLoading, isError };
+  return {
+    data: {
+      service_id: 'cron-workflows',
+      title: '定时任务',
+      icon: Timer,
+      icon_color: 'bg-orange-500',
+      total: data.total,
+      total_label: '任务数',
+      last_activity_at: data.lastActivityAt,
+      metrics: [
+        { key: 'active', label: '运行中', value: `${data.active} / ${data.total}`, type: 'count' },
+        { key: 'succeeded', label: '成功', value: data.totalSucceeded, type: 'count', color: 'green' },
+        { key: 'failed', label: '失败', value: data.totalFailed, type: 'count', color: 'red' },
+      ],
+      trend: trend || {},
+    },
+    isLoading,
+    isError,
+  };
+}
+
+function useKnowledgeOverview(days: number): { data: OverviewCardData | null; isLoading: boolean; isError: boolean } {
+  const { data, isLoading, isError } = useKnowledgeStats();
+  const { data: trend } = useKnowledgeTrend(days);
+  if (!data) return { data: null, isLoading, isError };
+  return {
+    data: {
+      service_id: 'knowledge',
+      title: '知识库',
+      icon: Brain,
+      icon_color: 'bg-purple-500',
+      total: data.totalAtoms,
+      total_label: '原子总数',
+      last_activity_at: data.lastActivityAt,
+      metrics: [
+        { key: 'learning', label: '学习', value: data.byStatus.learning, type: 'badge' },
+        { key: 'mastered', label: '掌握', value: data.byStatus.mastered, type: 'badge' },
+      ],
+      trend: trend || {},
+    },
+    isLoading,
+    isError,
+  };
+}
+
+function useHomeworkOverview(days: number): { data: OverviewCardData | null; isLoading: boolean; isError: boolean } {
+  const { data, isLoading, isError } = useHomeworkStats();
+  const { data: trend } = useHomeworkTrend(days);
+  if (!data) return { data: null, isLoading, isError };
+  return {
+    data: {
+      service_id: 'homework',
+      title: '作业助手',
+      icon: BookOpen,
+      icon_color: 'bg-green-500',
+      total: data.total,
+      total_label: '已提交',
+      last_activity_at: data.lastSubmittedAt ?? null,
+      metrics: [
+        { key: 'graded', label: '已批改', value: data.graded, type: 'count' },
+      ],
+      trend: trend || {},
+    },
+    isLoading,
+    isError,
+  };
+}
+
+function useDevActivityOverview(days: number): { data: OverviewCardData | null; isLoading: boolean; isError: boolean } {
+  const { data, isLoading, isError } = useDevTrackerOverview();
+  const { data: trend } = useActivityTrend(days);
+  if (!data) return { data: null, isLoading, isError };
+  const statusLabels: Record<string, string> = { todo: '待办', in_progress: '进行', done: 'done' };
+  return {
+    data: {
+      service_id: 'dev-tracker',
+      title: '开发活动',
+      icon: Code2,
+      icon_color: 'bg-indigo-500',
+      total: data.weekly_activities,
+      total_label: '本周活动',
+      last_activity_at: data.lastActivityAt,
+      metrics: Object.entries(data.tasks_by_status || {}).map(([status, count]) => ({
+        key: status,
+        label: statusLabels[status] || status,
+        value: count,
+        type: 'badge' as const,
+      })),
+      trend: trend || {},
+    },
+    isLoading,
+    isError,
+  };
+}
+
+function useSessionsOverview(): { data: OverviewCardData | null; isLoading: boolean; isError: boolean } {
+  const { data, isLoading, isError } = useDevTrackerSessions();
+  if (!data) return { data: null, isLoading, isError };
+  return {
+    data: {
+      service_id: 'dev-tracker-sessions',
+      title: 'Sessions',
+      icon: Monitor,
+      icon_color: 'bg-cyan-500',
+      total: data.total,
+      total_label: '总会话',
+      last_activity_at: null,
+      metrics: [
+        { key: 'completed', label: '完成', value: data.completed, type: 'count' },
+        { key: 'user_messages', label: '用户消息', value: data.total_user_messages, type: 'count' },
+        ...data.topProjects.slice(0, 5).map(([name, count]) => ({
+          key: `proj-${name}`,
+          label: name,
+          value: count,
+          type: 'badge' as const,
+        })),
+      ],
+      trend: {},
+    },
+    isLoading,
+    isError,
+  };
+}
+
+function useSpecsOverview(): { data: OverviewCardData | null; isLoading: boolean; isError: boolean } {
+  const { data, isLoading, isError } = useDevTrackerSpecs();
+  if (!data) return { data: null, isLoading, isError };
   const phaseLabels: Record<string, string> = {
     brainstorming: '头脑风暴',
     spec_writing: '撰写中',
@@ -418,44 +436,26 @@ function SpecsCard() {
     done: '已完成',
     cancelled: '已取消',
   };
-  return (
-    <StatCard icon={FileText} title="Specs" isLoading={isLoading} iconColor="bg-amber-500">
-      {data && (
-        <>
-          <StatRow label="总数" value={data.total} />
-          <div className="flex flex-wrap gap-1">
-            {Object.entries(data.byPhase).map(([phase, count]) => (
-              <Badge key={phase} variant="outline" className="text-xs px-1.5 py-0">
-                {phaseLabels[phase] || phase} {count}
-              </Badge>
-            ))}
-          </div>
-        </>
-      )}
-    </StatCard>
-  );
-}
-
-function HealthCard({ items }: { items: HealthItem[] }) {
-  return (
-    <StatCard icon={HeartPulse} title="服务健康" iconColor="bg-rose-500">
-      <div className="flex flex-wrap gap-2">
-        {items.map((s) => (
-          <div key={s.name} className="flex items-center gap-1.5">
-            <div
-              className={cn(
-                'h-2 w-2 rounded-full',
-                s.status === 'success' && 'bg-green-500',
-                s.status === 'error' && 'bg-red-500',
-                s.status === 'loading' && 'bg-gray-400 animate-pulse',
-              )}
-            />
-            <span className="text-xs text-muted-foreground">{s.name}</span>
-          </div>
-        ))}
-      </div>
-    </StatCard>
-  );
+  return {
+    data: {
+      service_id: 'dev-tracker-specs',
+      title: 'Specs',
+      icon: FileText,
+      icon_color: 'bg-amber-500',
+      total: data.total,
+      total_label: '总数',
+      last_activity_at: null,
+      metrics: Object.entries(data.byPhase).map(([phase, count]) => ({
+        key: phase,
+        label: phaseLabels[phase] || phase,
+        value: count,
+        type: 'badge' as const,
+      })),
+      trend: {},
+    },
+    isLoading,
+    isError,
+  };
 }
 
 // ==================== Main Component ====================
@@ -464,41 +464,35 @@ export function SystemOverview() {
   const [days, setDays] = useState(7);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
-  const handleDateClick = (date: string) => {
-    setSelectedDate((prev) => (prev === date ? null : date));
-  };
-
   const { min, max } = getDateRange(days);
 
-  const trendProps: TrendProps = { days, selectedDate, onDateClick: handleDateClick };
+  // All overview data
+  const msgGw = useMsgGwOverview(days);
+  const cron = useCronOverview(days);
+  const knowledge = useKnowledgeOverview(days);
+  const homework = useHomeworkOverview(days);
+  const devActivity = useDevActivityOverview(days);
+  const sessions = useSessionsOverview();
+  const specs = useSpecsOverview();
 
-  // Collect query statuses for HealthCard
-  // Note: these hooks share queryKeys with the ones inside each card component,
-  // so React Query deduplicates the requests automatically (same staleTime).
-  const msgGwQuery = useMsgGwStats();
-  const cronQuery = useCronSummary();
-  const knowledgeQuery = useKnowledgeStats();
-  const homeworkQuery = useHomeworkStats();
-  const devQuery = useDevTrackerOverview();
-  const sessionsQuery = useDevTrackerSessions();
-  const specsQuery = useDevTrackerSpecs();
+  const allCards = [msgGw, cron, knowledge, homework, devActivity, sessions, specs];
 
   const toStatus = (q: { isLoading: boolean; isError: boolean }) =>
     q.isLoading ? 'loading' as const : q.isError ? 'error' as const : 'success' as const;
 
   const healthItems: HealthItem[] = [
-    { name: '消息网关', status: toStatus(msgGwQuery) },
-    { name: '定时任务', status: toStatus(cronQuery) },
-    { name: '知识库', status: toStatus(knowledgeQuery) },
-    { name: '作业助手', status: toStatus(homeworkQuery) },
-    { name: '开发追踪', status: toStatus(devQuery) },
-    { name: 'Sessions', status: toStatus(sessionsQuery) },
-    { name: 'Specs', status: toStatus(specsQuery) },
+    { name: '消息网关', status: toStatus(msgGw) },
+    { name: '定时任务', status: toStatus(cron) },
+    { name: '知识库', status: toStatus(knowledge) },
+    { name: '作业助手', status: toStatus(homework) },
+    { name: '开发追踪', status: toStatus(devActivity) },
+    { name: 'Sessions', status: toStatus(sessions) },
+    { name: 'Specs', status: toStatus(specs) },
   ];
 
   return (
     <div className="space-y-4">
-      {/* Header: title + date filter + date picker */}
+      {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-3">
           <h2 className="text-lg font-semibold tracking-tight">系统运行概览</h2>
@@ -513,24 +507,19 @@ export function SystemOverview() {
           )}
         </div>
         <div className="flex items-center gap-2">
-          {/* Date range buttons */}
           <div className="flex items-center gap-1">
             {[7, 14, 30].map((d) => (
               <Button
                 key={d}
                 variant={days === d ? 'default' : 'outline'}
                 size="sm"
-                onClick={() => {
-                  setDays(d);
-                  setSelectedDate(null);
-                }}
+                onClick={() => { setDays(d); setSelectedDate(null); }}
                 className="h-7 px-2.5 text-xs"
               >
                 {d}天
               </Button>
             ))}
           </div>
-          {/* Single date picker */}
           <div className="flex items-center gap-1">
             <CalendarDays className="h-4 w-4 text-muted-foreground" />
             <Input
@@ -538,25 +527,46 @@ export function SystemOverview() {
               value={selectedDate || ''}
               min={min}
               max={max}
-              onChange={(e) => {
-                const v = e.target.value;
-                setSelectedDate(v || null);
-              }}
+              onChange={(e) => setSelectedDate(e.target.value || null)}
               className="h-7 w-[140px] text-xs px-2"
             />
           </div>
         </div>
       </div>
 
-      {/* 4x2 grid: all 8 cards */}
+      {/* 4x2 grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <MsgGwCard {...trendProps} />
-        <CronCard {...trendProps} />
-        <KnowledgeCard {...trendProps} />
-        <HomeworkCard {...trendProps} />
-        <DevActivityCard {...trendProps} />
-        <SessionsCard />
-        <SpecsCard />
+        {allCards.map((card) => {
+          if (!card.data) {
+            // Loading placeholder
+            const placeholderIcon = card === msgGw ? MessageSquare : card === cron ? Timer : card === knowledge ? Brain : card === homework ? BookOpen : card === devActivity ? Code2 : card === sessions ? Monitor : FileText;
+            const placeholderColor = card === msgGw ? 'bg-blue-500' : card === cron ? 'bg-orange-500' : card === knowledge ? 'bg-purple-500' : card === homework ? 'bg-green-500' : card === devActivity ? 'bg-indigo-500' : card === sessions ? 'bg-cyan-500' : 'bg-amber-500';
+            const PlaceholderIcon = placeholderIcon;
+            return (
+              <Card key={placeholderColor}>
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className={cn('rounded-lg p-1.5', placeholderColor)}>
+                      <PlaceholderIcon className="h-4 w-4 text-white" />
+                    </div>
+                    <span className="text-sm text-muted-foreground">加载中...</span>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          }
+          const dayValue = selectedDate && card.data.trend[selectedDate] != null
+            ? card.data.trend[selectedDate]
+            : null;
+          return (
+            <OverviewCard
+              key={card.data.service_id}
+              data={card.data}
+              selectedDate={selectedDate}
+              dayValue={dayValue}
+            />
+          );
+        })}
         <HealthCard items={healthItems} />
       </div>
     </div>

@@ -1,0 +1,276 @@
+<style>
+  .mockup-body { background: #ffffff !important; color: #1a1a1a !important; }
+  .mockup-body * { color: #1a1a1a; }
+  .mockup-body .mock-input { background: #f5f5f5 !important; border: 1px solid #ddd !important; color: #333 !important; }
+  .mockup-body [style*="color:#888"], .mockup-body [style*="color: #888"] { color: #888 !important; }
+  .mockup-body [style*="color:#aaa"], .mockup-body [style*="color: #aaa"] { color: #999 !important; }
+  .mockup-body [style*="border:1px solid #444"] { border-color: #e0e0e0 !important; }
+  .mockup-body [style*="border-bottom:2px solid #333"] { border-bottom-color: #e0e0e0 !important; }
+  .mockup-body [style*="border-bottom:1px solid #333"] { border-bottom-color: #e0e0e0 !important; }
+  .mockup-body [style*="background:#333"] { background: #f0f0f0 !important; color: #555 !important; }
+  .mockup-body [style*="border:1px solid #555"] { border-color: #ccc !important; }
+  .mockup-body [style*="color:#555"] { color: #555 !important; }
+  .mockup-header { background: #f8f8f8 !important; color: #333 !important; border-bottom: 1px solid #e0e0e0 !important; }
+</style>
+
+<h2>生活助手 — 完整交互设计</h2>
+<p class="subtitle">Landing 卡片入口 → 3 个子模块页面（白色底）</p>
+
+<div class="section">
+  <h3>1. Landing 页 — /life</h3>
+  <div class="mockup">
+    <div class="mockup-header">生活助手 life-app</div>
+    <div class="mockup-body">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px">
+        <div style="border:1px solid #e0e0e0;border-radius:12px;padding:20px;cursor:pointer;transition:box-shadow 0.2s;box-shadow:0 1px 3px rgba(0,0,0,0.08)">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+            <div style="width:36px;height:36px;border-radius:8px;background:#6366f1;display:flex;align-items:center;justify-content:center;color:white !important;font-size:16px">✈</div>
+            <div>
+              <div style="font-weight:600;font-size:14px;color:#1a1a1a !important">旅游计划</div>
+              <div style="color:#888 !important;font-size:11px">AI 生成行程 · 预算估算</div>
+            </div>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:12px;color:#999 !important">
+            <span>2 个计划</span>
+            <span style="color:#6366f1 !important">查看 →</span>
+          </div>
+        </div>
+        <div style="border:1px solid #e0e0e0;border-radius:12px;padding:20px;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,0.08)">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+            <div style="width:36px;height:36px;border-radius:8px;background:#f97316;display:flex;align-items:center;justify-content:center;color:white !important;font-size:16px">🏠</div>
+            <div>
+              <div style="font-weight:600;font-size:14px;color:#1a1a1a !important">找房</div>
+              <div style="color:#888 !important;font-size:11px">Rightmove · 房源搜索追踪</div>
+            </div>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:12px;color:#999 !important">
+            <span>4 套房源</span>
+            <span style="color:#f97316 !important">查看 →</span>
+          </div>
+        </div>
+        <div style="border:1px solid #e0e0e0;border-radius:12px;padding:20px;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,0.08)">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+            <div style="width:36px;height:36px;border-radius:8px;background:#22c55e;display:flex;align-items:center;justify-content:center;color:white !important;font-size:16px">🏨</div>
+            <div>
+              <div style="font-weight:600;font-size:14px;color:#1a1a1a !important">住宿搜索</div>
+              <div style="color:#888 !important;font-size:11px">Booking · 比价比较</div>
+            </div>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:12px;color:#999 !important">
+            <span>12 条记录</span>
+            <span style="color:#22c55e !important">查看 →</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>2. 旅游计划列表 — /life/travel</h3>
+  <div class="mockup">
+    <div class="mockup-header">生活助手 / 旅游计划</div>
+    <div class="mockup-body" style="padding:0">
+      <div style="padding:8px 16px;font-size:12px;color:#6366f1 !important;cursor:pointer">← 返回生活助手</div>
+      <div style="padding:0 16px 16px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <span style="font-weight:600;color:#1a1a1a !important">旅行计划</span>
+          <button style="background:#6366f1;color:white !important;border:none;padding:6px 14px;border-radius:6px;font-size:12px;cursor:pointer">+ 新建计划</button>
+        </div>
+        <div style="border:1px solid #e0e0e0;border-radius:8px;padding:12px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <div style="font-weight:600;font-size:14px;color:#1a1a1a !important">York·Sheffield·Cambridge</div>
+            <div style="color:#888 !important;font-size:12px">4/1 - 4/6 · 4大1小 · London 出发</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="background:#dcfce7;color:#16a34a !important;padding:2px 8px;border-radius:4px;font-size:11px">已完成</span>
+            <span style="color:#999 !important;font-size:12px">→</span>
+          </div>
+        </div>
+        <div style="border:1px solid #e0e0e0;border-radius:8px;padding:12px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <div style="font-weight:600;font-size:14px;color:#1a1a1a !important">Lake District 周末游</div>
+            <div style="color:#888 !important;font-size:12px">5/1 - 5/3 · 2大 · London 出发</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="background:#ffedd5;color:#ea580c !important;padding:2px 8px;border-radius:4px;font-size:11px">生成中...</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>3. 旅游计划详情 — /life/travel/:id（天数切换）</h3>
+  <div class="mockup">
+    <div class="mockup-header">York·Sheffield·Cambridge</div>
+    <div class="mockup-body" style="padding:0">
+      <div style="padding:8px 16px;font-size:12px;color:#6366f1 !important;cursor:pointer">← 返回计划列表</div>
+      <div style="padding:8px 16px;display:flex;gap:16px;font-size:12px;color:#888 !important;border-bottom:1px solid #e0e0e0">
+        <span>📅 4/1-4/6</span>
+        <span>👥 4大1小</span>
+        <span>🚂 公共交通</span>
+        <span>💰 £2,000 预算</span>
+        <button style="margin-left:auto;background:white;border:1px solid #ddd;color:#555 !important;padding:2px 10px;border-radius:4px;font-size:11px;cursor:pointer">导出 Markdown</button>
+      </div>
+      <div style="display:flex;gap:0;padding:0 16px;border-bottom:2px solid #e0e0e0">
+        <div style="padding:8px 12px;font-size:12px;color:#888 !important;cursor:pointer">概览</div>
+        <div style="padding:8px 12px;border-bottom:2px solid #6366f1;color:#6366f1 !important;font-weight:600;font-size:12px">D1 York</div>
+        <div style="padding:8px 12px;font-size:12px;color:#888 !important;cursor:pointer">D2 York</div>
+        <div style="padding:8px 12px;font-size:12px;color:#888 !important;cursor:pointer">D3 Sheffield</div>
+        <div style="padding:8px 12px;font-size:12px;color:#888 !important;cursor:pointer">D4 Sheffield</div>
+        <div style="padding:8px 12px;font-size:12px;color:#888 !important;cursor:pointer">D5 Cambridge</div>
+        <div style="padding:8px 12px;font-size:12px;color:#888 !important;cursor:pointer">D6 回程</div>
+      </div>
+      <div style="padding:16px">
+        <div style="font-weight:600;margin-bottom:4px;color:#1a1a1a !important">D1 — York · Historic Charm</div>
+        <div style="display:flex;flex-direction:column;gap:8px;margin-top:12px">
+          <div style="display:flex;gap:12px;align-items:flex-start;padding:8px;border-left:3px solid #6366f1;background:#f8f9ff;border-radius:0 6px 6px 0">
+            <div style="color:#888 !important;font-size:12px;min-width:40px">09:00</div>
+            <div>
+              <div style="font-size:13px;font-weight:500;color:#1a1a1a !important">London → York (火车)</div>
+              <div style="color:#888 !important;font-size:11px">National Rail · 90min · £45/人 · 儿童免费</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:12px;align-items:flex-start;padding:8px;border-left:3px solid #22c55e;background:#f0fdf4;border-radius:0 6px 6px 0">
+            <div style="color:#888 !important;font-size:12px;min-width:40px">11:00</div>
+            <div>
+              <div style="font-size:13px;font-weight:500;color:#1a1a1a !important">York Minster 约克大教堂</div>
+              <div style="color:#888 !important;font-size:11px">景点 · £12/人 · 90min · ⭐⭐⭐⭐ 亲子</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:12px;align-items:flex-start;padding:8px;border-left:3px solid #f97316;background:#fff7ed;border-radius:0 6px 6px 0">
+            <div style="color:#888 !important;font-size:12px;min-width:40px">12:30</div>
+            <div>
+              <div style="font-size:13px;font-weight:500;color:#1a1a1a !important">The Shambles 午餐</div>
+              <div style="color:#888 !important;font-size:11px">用餐 · 60min</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:12px;align-items:flex-start;padding:8px;border-left:3px solid #22c55e;background:#f0fdf4;border-radius:0 6px 6px 0">
+            <div style="color:#888 !important;font-size:12px;min-width:40px">14:00</div>
+            <div>
+              <div style="font-size:13px;font-weight:500;color:#1a1a1a !important">National Railway Museum</div>
+              <div style="color:#888 !important;font-size:11px">景点 · 免费 · 120min · ⭐⭐⭐⭐⭐ 亲子</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>4. 找房 — /life/rental（列表 + Sheet 搜索）</h3>
+  <div class="split">
+    <div class="mockup">
+      <div class="mockup-header">找房 — 房源列表</div>
+      <div class="mockup-body" style="padding:0">
+        <div style="padding:8px 16px;font-size:12px;color:#6366f1 !important;cursor:pointer">← 返回生活助手</div>
+        <div style="padding:0 16px 16px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+            <span style="font-weight:600;color:#1a1a1a !important">房源列表</span>
+            <button style="background:#f97316;color:white !important;border:none;padding:6px 14px;border-radius:6px;font-size:12px;cursor:pointer">+ 新建搜索</button>
+          </div>
+          <div style="display:flex;gap:8px;margin-bottom:12px;font-size:11px">
+            <span style="background:#f0f0f0;padding:2px 8px;border-radius:4px;color:#555 !important">Rotherhithe</span>
+            <span style="background:#f0f0f0;padding:2px 8px;border-radius:4px;color:#555 !important">≤£2,800</span>
+            <span style="background:#f0f0f0;padding:2px 8px;border-radius:4px;color:#555 !important">3+ 卧室</span>
+          </div>
+          <div style="border:1px solid #e0e0e0;border-radius:8px;padding:12px;margin-bottom:8px;box-shadow:0 1px 2px rgba(0,0,0,0.04)">
+            <div style="display:flex;justify-content:space-between">
+              <div style="font-weight:600;font-size:13px;color:#1a1a1a !important">Dock Hill Avenue, SE16</div>
+              <div style="color:#16a34a !important;font-weight:600">£2,500/月</div>
+            </div>
+            <div style="color:#888 !important;font-size:11px;margin-top:4px">House · 3卧1浴 · 带花园 · 家具齐全</div>
+          </div>
+          <div style="border:1px solid #e0e0e0;border-radius:8px;padding:12px;margin-bottom:8px;box-shadow:0 1px 2px rgba(0,0,0,0.04)">
+            <div style="display:flex;justify-content:space-between">
+              <div style="font-weight:600;font-size:13px;color:#1a1a1a !important">Oxley Close, SE16</div>
+              <div style="color:#ea580c !important;font-weight:600">£2,950/月</div>
+            </div>
+            <div style="color:#888 !important;font-size:11px;margin-top:4px">Terraced · 3卧1浴 · 花园+停车位</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="mockup">
+      <div class="mockup-header">新建搜索 (Sheet)</div>
+      <div class="mockup-body">
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div>
+            <div style="font-size:12px;color:#888 !important;margin-bottom:4px">位置</div>
+            <input class="mock-input" value="Rotherhithe" style="width:100%">
+          </div>
+          <div>
+            <div style="font-size:12px;color:#888 !important;margin-bottom:4px">最高月租 (£)</div>
+            <input class="mock-input" value="2800" style="width:100%">
+          </div>
+          <div>
+            <div style="font-size:12px;color:#888 !important;margin-bottom:4px">最少卧室</div>
+            <input class="mock-input" value="3" style="width:100%">
+          </div>
+          <div>
+            <div style="font-size:12px;color:#888 !important;margin-bottom:4px">房屋类型</div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap">
+              <span style="background:#ede9fe;color:#6366f1 !important;padding:4px 10px;border-radius:4px;font-size:11px">Detached</span>
+              <span style="background:#ede9fe;color:#6366f1 !important;padding:4px 10px;border-radius:4px;font-size:11px">Semi-detached</span>
+              <span style="background:#ede9fe;color:#6366f1 !important;padding:4px 10px;border-radius:4px;font-size:11px">Terraced</span>
+            </div>
+          </div>
+          <div style="margin-top:8px;padding:8px;background:#fff7ed;border-radius:6px;font-size:11px;color:#ea580c !important">
+            ⏳ 搜索约需 1-3 分钟（异步爬取 Rightmove）
+          </div>
+          <button style="background:#f97316;color:white !important;border:none;padding:8px;border-radius:6px;width:100%;cursor:pointer;font-size:13px">开始搜索</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>5. 住宿搜索 — /life/accommodation（搜索 + 比较）</h3>
+  <div class="mockup">
+    <div class="mockup-header">住宿搜索</div>
+    <div class="mockup-body" style="padding:0">
+      <div style="padding:8px 16px;font-size:12px;color:#6366f1 !important;cursor:pointer">← 返回生活助手</div>
+      <div style="padding:0 16px 16px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <span style="font-weight:600;color:#1a1a1a !important">住宿记录</span>
+          <div style="display:flex;gap:8px">
+            <button style="background:white;border:1px solid #ddd;color:#555 !important;padding:6px 14px;border-radius:6px;font-size:12px;cursor:pointer">比较已选 (2)</button>
+            <button style="background:#22c55e;color:white !important;border:none;padding:6px 14px;border-radius:6px;font-size:12px;cursor:pointer">+ 新建搜索</button>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <div style="border:1px solid #e0e0e0;border-radius:8px;padding:12px;position:relative;box-shadow:0 1px 2px rgba(0,0,0,0.04)">
+            <input type="checkbox" checked style="position:absolute;top:8px;right:8px;accent-color:#6366f1">
+            <div style="font-weight:600;font-size:13px;color:#1a1a1a !important">Hilton York</div>
+            <div style="display:flex;gap:8px;margin-top:4px;font-size:11px;color:#888 !important">
+              <span>⭐ 8.5</span>
+              <span>£120/晚</span>
+              <span>总价 £240</span>
+            </div>
+            <div style="display:flex;gap:4px;margin-top:6px;flex-wrap:wrap">
+              <span style="background:#dcfce7;color:#16a34a !important;padding:1px 6px;border-radius:3px;font-size:10px">免费取消</span>
+              <span style="background:#ede9fe;color:#6366f1 !important;padding:1px 6px;border-radius:3px;font-size:10px">含早</span>
+            </div>
+          </div>
+          <div style="border:1px solid #e0e0e0;border-radius:8px;padding:12px;position:relative;box-shadow:0 1px 2px rgba(0,0,0,0.04)">
+            <input type="checkbox" checked style="position:absolute;top:8px;right:8px;accent-color:#6366f1">
+            <div style="font-weight:600;font-size:13px;color:#1a1a1a !important">The Grand, York</div>
+            <div style="display:flex;gap:8px;margin-top:4px;font-size:11px;color:#888 !important">
+              <span>⭐ 9.1</span>
+              <span>£180/晚</span>
+              <span>总价 £360</span>
+            </div>
+            <div style="display:flex;gap:4px;margin-top:6px;flex-wrap:wrap">
+              <span style="background:#dcfce7;color:#16a34a !important;padding:1px 6px;border-radius:3px;font-size:10px">免费取消</span>
+              <span style="background:#dcfce7;color:#16a34a !important;padding:1px 6px;border-radius:3px;font-size:10px">免费WiFi</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

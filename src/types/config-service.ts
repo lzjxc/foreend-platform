@@ -84,3 +84,45 @@ export const STATUS_CONFIG: Record<ServiceStatus, { name: string; color: string 
   deprecated: { name: '已弃用', color: 'text-yellow-600 bg-yellow-100' },
   maintenance: { name: '维护中', color: 'text-orange-600 bg-orange-100' },
 };
+
+// ==================== LLM Config Types ====================
+
+export type LLMPolicyMode = 'enforce' | 'suggest';
+
+export interface LLMConfigItem {
+  service_id: string;
+  service_name: string;
+  llm_model: string | null;
+  llm_models_used: string[];
+  llm_temperature: number | null;
+  llm_max_tokens: number | null;
+  llm_timeout: number | null;
+  llm_fallback_model: string | null;
+  llm_policy_mode?: LLMPolicyMode;
+  llm_config_source?: 'seed' | 'manual';
+}
+
+export interface LLMConfigListResponse {
+  configs: LLMConfigItem[];
+  total: number;
+}
+
+export interface LLMConfigUpdate {
+  llm_model?: string | null;
+  llm_temperature?: number | null;
+  llm_max_tokens?: number | null;
+  llm_timeout?: number | null;
+  llm_fallback_model?: string | null;
+  llm_models_used?: string[] | null;
+}
+
+export interface LLMConfigUpdateResponse {
+  service_id: string;
+  updated_fields: string[];
+  message: string;
+}
+
+export const POLICY_MODE_CONFIG: Record<LLMPolicyMode, { name: string; color: string }> = {
+  enforce: { name: '强制', color: 'text-red-600 bg-red-100' },
+  suggest: { name: '建议', color: 'text-blue-600 bg-blue-100' },
+};

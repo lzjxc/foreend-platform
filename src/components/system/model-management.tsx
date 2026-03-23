@@ -18,6 +18,7 @@ import {
   ChevronUp,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { ServiceModelConfig } from './service-model-config';
 import {
   BarChart,
   Bar,
@@ -206,26 +207,27 @@ export function ModelManagement() {
   const localModels = models.filter(m => m.is_local && m.id !== 'default');
   const cloudModels = models.filter(m => !m.is_local);
 
-  // Build per-app model usage from breakdown
-  const appModelUsage = useMemo(() => {
-    if (!usageBreakdown?.by_model) return [];
-    const appMap = new Map<string, { models: { model: string; requests: number; tokens: number; cost: number }[]; totalRequests: number }>();
+  // Build usage-by-app map for ServiceModelConfig
+  const usageByAppMap = useMemo(() => {
+    if (!usageBreakdown?.by_model) return new Map();
+    const map = new Map<string, { requests: number; tokens: number; cost: number; models: { model: string; requests: number }[] }>();
     usageBreakdown.by_model.forEach(m => {
       m.apps.forEach(app => {
-        const existing = appMap.get(app.app) || { models: [], totalRequests: 0 };
-        existing.models.push({ model: m.model, requests: app.requests, tokens: app.tokens, cost: app.cost });
-        existing.totalRequests += app.requests;
-        appMap.set(app.app, existing);
+        const existing = map.get(app.app) || { requests: 0, tokens: 0, cost: 0, models: [] };
+        existing.requests += app.requests;
+        existing.tokens += app.tokens;
+        existing.cost += app.cost;
+        existing.models.push({ model: m.model, requests: app.requests });
+        map.set(app.app, existing);
       });
     });
-    return Array.from(appMap.entries())
-      .map(([app, data]) => ({
-        app,
-        models: data.models.sort((a, b) => b.requests - a.requests),
-        totalRequests: data.totalRequests,
-      }))
-      .sort((a, b) => b.totalRequests - a.totalRequests);
+    return map;
   }, [usageBreakdown]);
+
+  // Available model IDs for the edit sheet dropdown
+  const availableModelIds = useMemo(() => {
+    return models.filter(m => m.id !== 'default').map(m => m.id);
+  }, [models]);
 
   // Daily chart data
   const dailySpendData = useMemo(() => {
@@ -374,47 +376,8 @@ export function ModelManagement() {
         </CardContent>
       </Card>
 
-      {/* ==================== Per-App Model Usage ==================== */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Layers className="h-5 w-5" />
-            服务模型调用 (最近 7 天)
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {isLoadingSpend ? (
-            <div className="space-y-3">
-              {[1, 2, 3].map(i => <Skeleton key={i} className="h-12 w-full" />)}
-            </div>
-          ) : appModelUsage.length === 0 ? (
-            <div className="py-8 text-center text-sm text-muted-foreground">暂无调用数据</div>
-          ) : (
-            <div className="space-y-3">
-              {appModelUsage.map(({ app, models: appModels, totalRequests: appTotal }) => (
-                <div key={app} className="rounded-lg border p-3">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium">{app}</span>
-                    <span className="text-xs text-muted-foreground">{appTotal} 次调用</span>
-                  </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {appModels.map(am => (
-                      <Badge key={am.model} variant="secondary" className="gap-1 text-xs font-normal">
-                        <span
-                          className="inline-block h-2 w-2 rounded-full"
-                          style={{ backgroundColor: isLocalModel(am.model) ? MODEL_COLORS.local : (MODEL_COLORS[am.model] || MODEL_COLORS.default) }}
-                        />
-                        {am.model}
-                        <span className="text-muted-foreground">({am.requests})</span>
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      {/* ==================== Service Model Config ==================== */}
+      <ServiceModelConfig usageByApp={usageByAppMap} availableModels={availableModelIds} />
 
       {/* ==================== LLM Usage Stats ==================== */}
       <Card>

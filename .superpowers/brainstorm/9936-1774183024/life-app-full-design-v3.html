@@ -1,0 +1,343 @@
+<style>
+  .app-mock { background:#fff; border:1px solid #e0e0e0; border-radius:12px; overflow:hidden; margin-bottom:4px; }
+  .app-mock * { color:#1a1a1a; }
+  .app-breadcrumb { padding:10px 20px; font-size:12px; color:#6366f1 !important; cursor:pointer; }
+  .app-header { padding:4px 20px 12px; display:flex; justify-content:space-between; align-items:center; }
+  .app-header h4 { font-weight:600; font-size:16px; margin:0; }
+  .app-body { padding:0 20px 20px; }
+  .app-summary { padding:8px 20px; display:flex; gap:16px; font-size:12px; color:#888 !important; border-bottom:1px solid #f0f0f0; }
+  .app-tabs { display:flex; gap:0; padding:0 20px; border-bottom:2px solid #f0f0f0; }
+  .app-tab { padding:10px 14px; font-size:12px; color:#999 !important; cursor:pointer; }
+  .app-tab.active { border-bottom:2px solid #6366f1; color:#6366f1 !important; font-weight:600; }
+  .card-grid { display:grid; gap:12px; }
+  .card-grid.cols-3 { grid-template-columns:1fr 1fr 1fr; }
+  .card-grid.cols-2 { grid-template-columns:1fr 1fr; }
+  .item-card { border:1px solid #eee; border-radius:10px; padding:16px; box-shadow:0 1px 3px rgba(0,0,0,0.04); }
+  .tag { display:inline-block; padding:2px 8px; border-radius:4px; font-size:10px; margin-right:4px; }
+  .tag-green { background:#dcfce7; color:#16a34a !important; }
+  .tag-orange { background:#ffedd5; color:#ea580c !important; }
+  .tag-purple { background:#ede9fe; color:#6366f1 !important; }
+  .tag-gray { background:#f3f4f6; color:#555 !important; }
+  .btn-primary { border:none; padding:7px 16px; border-radius:6px; font-size:12px; cursor:pointer; color:white !important; }
+  .btn-outline { background:white; border:1px solid #ddd; padding:7px 16px; border-radius:6px; font-size:12px; cursor:pointer; color:#555 !important; }
+  .activity-row { display:flex; gap:12px; align-items:flex-start; padding:10px; border-radius:0 8px 8px 0; margin-bottom:6px; }
+  .activity-time { color:#999 !important; font-size:12px; min-width:44px; }
+  .activity-title { font-size:13px; font-weight:500; }
+  .activity-sub { color:#888 !important; font-size:11px; margin-top:2px; }
+  .form-label { font-size:12px; color:#888 !important; margin-bottom:4px; }
+  .form-input { width:100%; padding:8px 10px; border:1px solid #ddd; border-radius:6px; background:#fafafa; font-size:13px; color:#333 !important; }
+  .module-icon { width:36px; height:36px; border-radius:8px; display:flex; align-items:center; justify-content:center; color:white !important; font-size:16px; flex-shrink:0; }
+</style>
+
+<h2>生活助手 — 完整交互设计</h2>
+<p class="subtitle">全白底，与个人 AI 外脑页面风格一致</p>
+
+<div class="section">
+  <h3>1. Landing 页 — /life</h3>
+  <div class="app-mock">
+    <div class="app-header" style="padding-top:20px">
+      <h4>生活助手 <span style="font-weight:400;font-size:12px;color:#999 !important">life-app</span></h4>
+    </div>
+    <div class="app-body">
+      <div class="card-grid cols-3">
+        <div class="item-card" style="cursor:pointer">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+            <div class="module-icon" style="background:#6366f1">✈</div>
+            <div>
+              <div style="font-weight:600;font-size:14px">旅游计划</div>
+              <div style="color:#888 !important;font-size:11px">AI 生成行程 · 预算估算</div>
+            </div>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:12px;color:#bbb !important">
+            <span>2 个计划</span>
+            <span style="color:#6366f1 !important">查看 →</span>
+          </div>
+        </div>
+        <div class="item-card" style="cursor:pointer">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+            <div class="module-icon" style="background:#f97316">🏠</div>
+            <div>
+              <div style="font-weight:600;font-size:14px">找房</div>
+              <div style="color:#888 !important;font-size:11px">Rightmove · 房源搜索追踪</div>
+            </div>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:12px;color:#bbb !important">
+            <span>4 套房源</span>
+            <span style="color:#f97316 !important">查看 →</span>
+          </div>
+        </div>
+        <div class="item-card" style="cursor:pointer">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+            <div class="module-icon" style="background:#22c55e">🏨</div>
+            <div>
+              <div style="font-weight:600;font-size:14px">住宿搜索</div>
+              <div style="color:#888 !important;font-size:11px">Booking · 比价比较</div>
+            </div>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:12px;color:#bbb !important">
+            <span>12 条记录</span>
+            <span style="color:#22c55e !important">查看 →</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>2. 旅游计划列表 — /life/travel</h3>
+  <div class="app-mock">
+    <div class="app-breadcrumb">← 返回生活助手</div>
+    <div class="app-header">
+      <h4>旅行计划</h4>
+      <button class="btn-primary" style="background:#6366f1">+ 新建计划</button>
+    </div>
+    <div class="app-body">
+      <div class="item-card" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;cursor:pointer">
+        <div>
+          <div style="font-weight:600;font-size:14px">York·Sheffield·Cambridge</div>
+          <div style="color:#888 !important;font-size:12px;margin-top:2px">4/1 - 4/6 · 4大1小 · London 出发</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <span class="tag tag-green">已完成</span>
+          <span style="color:#ccc !important">→</span>
+        </div>
+      </div>
+      <div class="item-card" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer">
+        <div>
+          <div style="font-weight:600;font-size:14px">Lake District 周末游</div>
+          <div style="color:#888 !important;font-size:12px;margin-top:2px">5/1 - 5/3 · 2大 · London 出发</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <span class="tag tag-orange">生成中...</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>3. 旅游计划详情 — /life/travel/:id</h3>
+  <div class="app-mock">
+    <div class="app-breadcrumb">← 返回计划列表</div>
+    <div class="app-header">
+      <h4>York·Sheffield·Cambridge</h4>
+      <button class="btn-outline">📄 导出 Markdown</button>
+    </div>
+    <div class="app-summary">
+      <span>📅 4/1 - 4/6</span>
+      <span>👥 4大1小</span>
+      <span>🚂 公共交通</span>
+      <span>💰 预算 £2,000</span>
+    </div>
+    <div class="app-tabs">
+      <div class="app-tab">概览</div>
+      <div class="app-tab active">D1 York</div>
+      <div class="app-tab">D2 York</div>
+      <div class="app-tab">D3 Sheffield</div>
+      <div class="app-tab">D4 Sheffield</div>
+      <div class="app-tab">D5 Cambridge</div>
+      <div class="app-tab">D6 回程</div>
+    </div>
+    <div style="padding:20px">
+      <div style="font-weight:600;font-size:15px;margin-bottom:14px">D1 — York · Historic Charm</div>
+      <div class="activity-row" style="border-left:3px solid #6366f1;background:#f8f9ff">
+        <div class="activity-time">09:00</div>
+        <div>
+          <div class="activity-title">London → York (火车)</div>
+          <div class="activity-sub">National Rail · 90min · £45/人 · 儿童免费</div>
+        </div>
+      </div>
+      <div class="activity-row" style="border-left:3px solid #22c55e;background:#f0fdf4">
+        <div class="activity-time">11:00</div>
+        <div>
+          <div class="activity-title">York Minster 约克大教堂</div>
+          <div class="activity-sub">景点 · £12/人 · 90min · ⭐⭐⭐⭐ 亲子友好</div>
+        </div>
+      </div>
+      <div class="activity-row" style="border-left:3px solid #f97316;background:#fff7ed">
+        <div class="activity-time">12:30</div>
+        <div>
+          <div class="activity-title">The Shambles 午餐</div>
+          <div class="activity-sub">用餐 · 60min</div>
+        </div>
+      </div>
+      <div class="activity-row" style="border-left:3px solid #22c55e;background:#f0fdf4">
+        <div class="activity-time">14:00</div>
+        <div>
+          <div class="activity-title">National Railway Museum</div>
+          <div class="activity-sub">景点 · 免费 · 120min · ⭐⭐⭐⭐⭐ 亲子友好</div>
+        </div>
+      </div>
+      <div class="activity-row" style="border-left:3px solid #8b5cf6;background:#faf5ff">
+        <div class="activity-time">16:30</div>
+        <div>
+          <div class="activity-title">York City Walls 散步</div>
+          <div class="activity-sub">休闲 · 免费 · 60min · ⭐⭐⭐ 亲子友好</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>4. 找房 — /life/rental</h3>
+  <div class="split">
+    <div class="app-mock" style="flex:1.2">
+      <div class="app-breadcrumb">← 返回生活助手</div>
+      <div class="app-header">
+        <h4>房源列表</h4>
+        <button class="btn-primary" style="background:#f97316">+ 新建搜索</button>
+      </div>
+      <div style="padding:0 20px 8px;display:flex;gap:6px">
+        <span class="tag tag-gray">Rotherhithe</span>
+        <span class="tag tag-gray">≤ £2,800</span>
+        <span class="tag tag-gray">3+ 卧室</span>
+      </div>
+      <div class="app-body">
+        <div class="item-card" style="margin-bottom:10px;cursor:pointer">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start">
+            <div style="font-weight:600;font-size:13px">Dock Hill Avenue, Surrey Quays, SE16</div>
+            <div style="color:#16a34a !important;font-weight:700;font-size:14px;white-space:nowrap">£2,500<span style="font-weight:400;font-size:11px;color:#999 !important">/月</span></div>
+          </div>
+          <div style="color:#888 !important;font-size:11px;margin-top:4px">House · 3卧1浴 · 带花园 · 家具齐全</div>
+          <div style="display:flex;gap:4px;margin-top:6px">
+            <span class="tag tag-green">预算内</span>
+            <span class="tag tag-purple">EPC D</span>
+          </div>
+        </div>
+        <div class="item-card" style="margin-bottom:10px;cursor:pointer">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start">
+            <div style="font-weight:600;font-size:13px">Oxley Close, SE16</div>
+            <div style="color:#ea580c !important;font-weight:700;font-size:14px;white-space:nowrap">£2,950<span style="font-weight:400;font-size:11px;color:#999 !important">/月</span></div>
+          </div>
+          <div style="color:#888 !important;font-size:11px;margin-top:4px">Terraced · 3卧1浴 · 花园+停车位</div>
+          <div style="display:flex;gap:4px;margin-top:6px">
+            <span class="tag tag-orange">超预算 £150</span>
+            <span class="tag tag-purple">EPC C</span>
+          </div>
+        </div>
+        <div class="item-card" style="cursor:pointer">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start">
+            <div style="font-weight:600;font-size:13px">Delaford Road, SE16</div>
+            <div style="color:#ea580c !important;font-weight:700;font-size:14px;white-space:nowrap">£3,000<span style="font-weight:400;font-size:11px;color:#999 !important">/月</span></div>
+          </div>
+          <div style="color:#888 !important;font-size:11px;margin-top:4px">Semi-Detached · 3卧1浴 · 948 sqft</div>
+          <div style="display:flex;gap:4px;margin-top:6px">
+            <span class="tag tag-orange">超预算 £200</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="app-mock" style="flex:0.8">
+      <div style="padding:16px 20px;font-weight:600;font-size:14px;border-bottom:1px solid #f0f0f0">新建搜索</div>
+      <div style="padding:20px;display:flex;flex-direction:column;gap:14px">
+        <div>
+          <div class="form-label">位置</div>
+          <input class="form-input" value="Rotherhithe">
+        </div>
+        <div>
+          <div class="form-label">最高月租 (£)</div>
+          <input class="form-input" value="2800">
+        </div>
+        <div>
+          <div class="form-label">最少卧室</div>
+          <input class="form-input" value="3">
+        </div>
+        <div>
+          <div class="form-label">房屋类型</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            <span class="tag tag-purple" style="padding:5px 12px;font-size:11px;cursor:pointer">Detached</span>
+            <span class="tag tag-purple" style="padding:5px 12px;font-size:11px;cursor:pointer">Semi-detached</span>
+            <span class="tag tag-purple" style="padding:5px 12px;font-size:11px;cursor:pointer">Terraced</span>
+          </div>
+        </div>
+        <div style="padding:10px;background:#fff7ed;border-radius:8px;font-size:11px;color:#ea580c !important">
+          ⏳ 搜索约需 1-3 分钟（异步爬取 Rightmove）
+        </div>
+        <button class="btn-primary" style="background:#f97316;width:100%;padding:10px;font-size:13px">开始搜索</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>5. 住宿搜索 — /life/accommodation</h3>
+  <div class="app-mock">
+    <div class="app-breadcrumb">← 返回生活助手</div>
+    <div class="app-header">
+      <h4>住宿记录</h4>
+      <div style="display:flex;gap:8px">
+        <button class="btn-outline">比较已选 (2)</button>
+        <button class="btn-primary" style="background:#22c55e">+ 新建搜索</button>
+      </div>
+    </div>
+    <div style="padding:0 20px 8px;display:flex;gap:6px">
+      <span class="tag tag-gray">York, UK</span>
+      <span class="tag tag-gray">4/1 - 4/3</span>
+      <span class="tag tag-gray">4大1小</span>
+    </div>
+    <div class="app-body">
+      <div class="card-grid cols-2">
+        <div class="item-card" style="position:relative;cursor:pointer">
+          <input type="checkbox" checked style="position:absolute;top:12px;right:12px;accent-color:#6366f1;width:16px;height:16px">
+          <div style="font-weight:600;font-size:14px">Hilton York</div>
+          <div style="display:flex;gap:12px;margin-top:6px;font-size:12px;color:#888 !important">
+            <span>⭐ 8.5 <span style="color:#bbb !important">(234)</span></span>
+            <span style="font-weight:600;color:#1a1a1a !important">£120/晚</span>
+            <span>总价 <strong style="color:#1a1a1a !important">£240</strong></span>
+          </div>
+          <div style="color:#888 !important;font-size:11px;margin-top:4px">📍 距市中心 0.5 miles</div>
+          <div style="display:flex;gap:4px;margin-top:8px;flex-wrap:wrap">
+            <span class="tag tag-green">免费取消</span>
+            <span class="tag tag-purple">含早餐</span>
+            <span class="tag tag-green">免费WiFi</span>
+          </div>
+        </div>
+        <div class="item-card" style="position:relative;cursor:pointer">
+          <input type="checkbox" checked style="position:absolute;top:12px;right:12px;accent-color:#6366f1;width:16px;height:16px">
+          <div style="font-weight:600;font-size:14px">The Grand, York</div>
+          <div style="display:flex;gap:12px;margin-top:6px;font-size:12px;color:#888 !important">
+            <span>⭐ 9.1 <span style="color:#bbb !important">(512)</span></span>
+            <span style="font-weight:600;color:#1a1a1a !important">£180/晚</span>
+            <span>总价 <strong style="color:#1a1a1a !important">£360</strong></span>
+          </div>
+          <div style="color:#888 !important;font-size:11px;margin-top:4px">📍 距市中心 0.2 miles</div>
+          <div style="display:flex;gap:4px;margin-top:8px;flex-wrap:wrap">
+            <span class="tag tag-green">免费取消</span>
+            <span class="tag tag-green">免费WiFi</span>
+            <span class="tag tag-green">免费停车</span>
+          </div>
+        </div>
+        <div class="item-card" style="position:relative;cursor:pointer">
+          <input type="checkbox" style="position:absolute;top:12px;right:12px;accent-color:#6366f1;width:16px;height:16px">
+          <div style="font-weight:600;font-size:14px">Airbnb - Cosy Cottage</div>
+          <div style="display:flex;gap:12px;margin-top:6px;font-size:12px;color:#888 !important">
+            <span>⭐ 8.8 <span style="color:#bbb !important">(89)</span></span>
+            <span style="font-weight:600;color:#1a1a1a !important">£95/晚</span>
+            <span>总价 <strong style="color:#1a1a1a !important">£190</strong></span>
+          </div>
+          <div style="color:#888 !important;font-size:11px;margin-top:4px">📍 距市中心 1.2 miles</div>
+          <div style="display:flex;gap:4px;margin-top:8px;flex-wrap:wrap">
+            <span class="tag tag-green">厨房</span>
+            <span class="tag tag-green">允许宠物</span>
+          </div>
+        </div>
+        <div class="item-card" style="position:relative;cursor:pointer">
+          <input type="checkbox" style="position:absolute;top:12px;right:12px;accent-color:#6366f1;width:16px;height:16px">
+          <div style="font-weight:600;font-size:14px">Premier Inn York</div>
+          <div style="display:flex;gap:12px;margin-top:6px;font-size:12px;color:#888 !important">
+            <span>⭐ 7.9 <span style="color:#bbb !important">(1.2k)</span></span>
+            <span style="font-weight:600;color:#1a1a1a !important">£75/晚</span>
+            <span>总价 <strong style="color:#1a1a1a !important">£150</strong></span>
+          </div>
+          <div style="color:#888 !important;font-size:11px;margin-top:4px">📍 距市中心 0.8 miles</div>
+          <div style="display:flex;gap:4px;margin-top:8px;flex-wrap:wrap">
+            <span class="tag tag-purple">含早餐</span>
+            <span class="tag tag-green">儿童免费</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

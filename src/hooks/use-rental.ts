@@ -8,13 +8,32 @@ import type {
   PaginatedResponse,
 } from '@/types/life-app';
 
+export interface PropertyTypeOption {
+  value: string;
+  label: string;
+}
+
 export const rentalKeys = {
   all: ['rental'] as const,
+  propertyTypes: () => [...rentalKeys.all, 'property-types'] as const,
   searches: () => [...rentalKeys.all, 'searches'] as const,
   search: (id: string) => [...rentalKeys.all, 'search', id] as const,
   properties: () => [...rentalKeys.all, 'properties'] as const,
   property: (id: string) => [...rentalKeys.all, 'property', id] as const,
 };
+
+export function usePropertyTypes() {
+  return useQuery({
+    queryKey: rentalKeys.propertyTypes(),
+    queryFn: async () => {
+      const { data } = await lifeAppClient.get<PropertyTypeOption[]>(
+        '/api/v1/rental/property-types'
+      );
+      return data;
+    },
+    staleTime: 24 * 60 * 60_000, // 24h cache
+  });
+}
 
 export function useRentalProperties(page = 1, pageSize = 20, sortBy = 'price_pcm', order = 'asc') {
   return useQuery({

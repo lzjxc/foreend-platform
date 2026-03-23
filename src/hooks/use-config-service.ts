@@ -1,10 +1,14 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
 import type {
   ServiceInfo,
   ServiceListResponse,
   ServiceHealthResponse,
   CatalogHealthResponse,
+  LLMConfigItem,
+  LLMConfigListResponse,
+  LLMConfigUpdate,
+  LLMConfigUpdateResponse,
 } from '@/types/config-service';
 
 // Config Service API base URL (via vite proxy)
@@ -17,6 +21,8 @@ export const configServiceKeys = {
   service: (id: string) => [...configServiceKeys.all, 'service', id] as const,
   health: (id: string) => [...configServiceKeys.all, 'health', id] as const,
   catalogHealth: () => [...configServiceKeys.all, 'catalog-health'] as const,
+  llmConfigs: () => [...configServiceKeys.all, 'llm-configs'] as const,
+  llmConfig: (id: string) => [...configServiceKeys.all, 'llm-config', id] as const,
 };
 
 // Fetch all services
@@ -74,6 +80,58 @@ export function useCatalogHealth() {
       return data;
     },
     staleTime: 30_000,
+  });
+}
+
+// Fetch LLM configs for all services, merged with policy modes from llm-policies
+export function useLLMConfigs(hasLlm: boolean = true) {
+  return useQuery({
+    queryKey: configServiceKeys.llmConfigs(),
+    queryFn: async (): Promise<LLMConfigItem[]> => {
+      const [configResp, policiesResp] = await Promise.all([
+        axios.get<LLMConfigListResponse>(
+          `${CONFIG_SERVICE_URL}/api/v1/config/llm`,
+          { params: { has_llm: hasLlm } }
+        ),
+        axios.get<Array<{ id: string; llm_policy_mode?: string }>>(
+          `${CONFIG_SERVICE_URL}/api/v1/llm-policies`
+        ).catch(() => ({ data: [] as Array<{ id: string; llm_policy_mode?: string }> })),
+      ]);
+
+      // Build policy mode map
+      const policyMap = new Map<string, string>();
+      for (const p of policiesResp.data) {
+        if (p.id && p.llm_policy_mode) {
+          policyMap.set(p.id, p.llm_policy_mode);
+        }
+      }
+
+      // Merge policy mode into configs
+      return configResp.data.configs.map(c => ({
+        ...c,
+        llm_policy_mode: (policyMap.get(c.service_id) as LLMConfigItem['llm_policy_mode']) || c.llm_policy_mode,
+      }));
+    },
+    staleTime: 60_000,
+  });
+}
+
+// Update LLM config for a service
+export function useUpdateLLMConfig() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ serviceId, update }: { serviceId: string; update: LLMConfigUpdate }) => {
+      const { data } = await axios.patch<LLMConfigUpdateResponse>(
+        `${CONFIG_SERVICE_URL}/api/v1/config/llm/${serviceId}`,
+        update,
+        { headers: { 'X-API-Key': 'VfSEn5dBWdl97BeLkDr2d0AZSqKV7QkOjqa3kjXqTWk' } }
+      );
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: configServiceKeys.llmConfigs() });
+    },
   });
 }
 

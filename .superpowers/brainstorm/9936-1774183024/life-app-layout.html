@@ -1,0 +1,85 @@
+<h2>生活助手 — 页面布局方案</h2>
+<p class="subtitle">一个侧边栏入口，内部 3 个 tab 切换模块</p>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>顶部 Tab 切换（推荐）</h3>
+      <p>与文档中心、家庭成员一致的 PageTabs 模式</p>
+      <div class="mockup" style="margin-top:12px">
+        <div class="mockup-header">生活助手</div>
+        <div class="mockup-body" style="padding:0">
+          <div style="display:flex;gap:0;border-bottom:2px solid #333;padding:0 16px">
+            <div style="padding:8px 16px;border-bottom:2px solid #6366f1;color:#6366f1;font-weight:600;font-size:13px">旅游计划</div>
+            <div style="padding:8px 16px;color:#888;font-size:13px">找房</div>
+            <div style="padding:8px 16px;color:#888;font-size:13px">住宿搜索</div>
+          </div>
+          <div style="padding:16px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+              <span style="font-weight:600">我的旅行计划</span>
+              <button class="mock-button">+ 新建计划</button>
+            </div>
+            <div class="placeholder" style="height:60px;margin-bottom:8px">York·Sheffield·Cambridge — 4/1-4/6 — 已完成</div>
+            <div class="placeholder" style="height:60px;margin-bottom:8px">Lake District — 5/1-5/3 — 生成中...</div>
+            <div class="placeholder" style="height:60px;opacity:0.5">空状态引导</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Landing 卡片入口</h3>
+      <p>类似游戏开发的 Landing 页，3 个模块卡片，点击进入子页面</p>
+      <div class="mockup" style="margin-top:12px">
+        <div class="mockup-header">生活助手</div>
+        <div class="mockup-body">
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
+            <div style="border:1px solid #444;border-radius:8px;padding:16px;text-align:center">
+              <div style="font-size:24px;margin-bottom:8px">✈️</div>
+              <div style="font-weight:600;font-size:14px">旅游计划</div>
+              <div style="color:#888;font-size:12px;margin-top:4px">AI 生成行程 · 预算估算</div>
+              <div style="color:#6366f1;font-size:12px;margin-top:8px">2 个计划</div>
+            </div>
+            <div style="border:1px solid #444;border-radius:8px;padding:16px;text-align:center">
+              <div style="font-size:24px;margin-bottom:8px">🏠</div>
+              <div style="font-weight:600;font-size:14px">找房</div>
+              <div style="color:#888;font-size:12px;margin-top:4px">Rightmove 搜索 · 房源追踪</div>
+              <div style="color:#6366f1;font-size:12px;margin-top:8px">4 套房源</div>
+            </div>
+            <div style="border:1px solid #444;border-radius:8px;padding:16px;text-align:center">
+              <div style="font-size:24px;margin-bottom:8px">🏨</div>
+              <div style="font-weight:600;font-size:14px">住宿搜索</div>
+              <div style="color:#888;font-size:12px;margin-top:4px">Booking 搜索 · 比价</div>
+              <div style="color:#6366f1;font-size:12px;margin-top:8px">12 条记录</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>混合模式</h3>
+      <p>Landing 卡片 + 点击后进入带 Tab 的子页面</p>
+      <div class="mockup" style="margin-top:12px">
+        <div class="mockup-header">生活助手 / 旅游计划</div>
+        <div class="mockup-body" style="padding:0">
+          <div style="padding:8px 16px;font-size:12px;color:#888">← 返回生活助手</div>
+          <div style="display:flex;gap:0;border-bottom:2px solid #333;padding:0 16px">
+            <div style="padding:8px 16px;border-bottom:2px solid #6366f1;color:#6366f1;font-weight:600;font-size:13px">计划列表</div>
+            <div style="padding:8px 16px;color:#888;font-size:13px">计划详情</div>
+          </div>
+          <div style="padding:16px">
+            <div class="placeholder" style="height:80px">计划内容...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

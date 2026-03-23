@@ -43,6 +43,12 @@ export default defineConfig({
         port: 5173,
         host: true,
         proxy: {
+            // Proxy Dev Tracker API
+            '/dev-tracker-api': {
+                target: 'http://192.168.1.191:32071',
+                changeOrigin: true,
+                rewrite: function (p) { return p.replace(/^\/dev-tracker-api/, ''); },
+            },
             // Proxy Homework API for homework assistant
             '/homework-api': {
                 target: 'http://192.168.1.191:30485',
@@ -181,6 +187,12 @@ export default defineConfig({
                 target: 'http://192.168.1.191:31472',
                 changeOrigin: true,
                 rewrite: function (p) { return p.replace(/^\/design-image-api/, ''); },
+            },
+            // Proxy Life App API (travel, rental, accommodation)
+            '/life-api': {
+                target: 'http://192.168.1.191:32009',
+                changeOrigin: true,
+                rewrite: function (p) { return p.replace(/^\/life-api/, ''); },
             },
         },
     },

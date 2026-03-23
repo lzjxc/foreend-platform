@@ -1,5 +1,6 @@
 import { Sparkles } from 'lucide-react';
 import { FinancialTrends } from '@/components/financial/financial-trends';
+import { SystemOverview } from '@/components/dashboard/system-overview';
 import { CurrencyStats } from '@/components/financial/currency-stats';
 
 export default function Dashboard() {
@@ -67,6 +68,9 @@ export default function Dashboard() {
 
       {/* Financial Trends */}
       <FinancialTrends />
+
+      {/* System Overview */}
+      <SystemOverview />
 
       {/* Currency Transaction Stats */}
       <CurrencyStats />

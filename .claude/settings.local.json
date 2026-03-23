@@ -27,7 +27,9 @@
       "Bash(istioctl ztunnel-config workload:*)",
       "Bash(taskkill:*)",
       "Bash(nslookup:*)",
-      "Skill(doc)"
+      "Skill(doc)",
+      "mcp__playwright__browser_navigate",
+      "mcp__playwright__browser_take_screenshot"
     ]
   }
 }

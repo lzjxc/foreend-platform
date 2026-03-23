@@ -17,14 +17,9 @@ import {
   useRentalProperties,
   useCreateRentalSearch,
   useRentalSearchResult,
+  usePropertyTypes,
 } from '@/hooks/use-rental';
 import type { RentalSearchInput } from '@/types/life-app';
-
-const PROPERTY_TYPES = [
-  { value: 'detached', label: 'Detached' },
-  { value: 'semi-detached', label: 'Semi-detached' },
-  { value: 'terraced', label: 'Terraced' },
-];
 
 const DEFAULT_FORM: RentalSearchInput = {
   location: 'Rotherhithe',
@@ -45,6 +40,7 @@ export default function LifeRentalList() {
   const [polling, setPolling] = useState(false);
 
   const { data, isLoading } = useRentalProperties(page);
+  const { data: propertyTypes } = usePropertyTypes();
   const createSearch = useCreateRentalSearch();
   const { data: searchResult } = useRentalSearchResult(polling ? searchId : null);
 
@@ -267,7 +263,7 @@ export default function LifeRentalList() {
             <div className="space-y-2">
               <label className="text-sm font-medium">房屋类型</label>
               <div className="space-y-2">
-                {PROPERTY_TYPES.map((pt) => (
+                {(propertyTypes ?? []).map((pt) => (
                   <label key={pt.value} className="flex items-center gap-2 cursor-pointer">
                     <input
                       type="checkbox"
