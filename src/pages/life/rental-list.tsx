@@ -230,8 +230,15 @@ export default function LifeRentalList() {
                       <p className="font-semibold text-sm leading-snug truncate">{prop.address}</p>
                       <p className="text-xs text-muted-foreground">
                         {prop.property_type} · {prop.bedrooms} 卧 · {prop.bathrooms} 浴
-                        {prop.listing_date && <span> · {prop.listing_date}</span>}
                       </p>
+                      <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-muted-foreground pt-1">
+                        {prop.listing_date && (
+                          <span><span className="text-foreground/60">上架:</span> {prop.listing_date}</span>
+                        )}
+                        {prop.created_at && (
+                          <span><span className="text-foreground/60">采集:</span> {new Date(prop.created_at).toLocaleDateString('zh-CN')}</span>
+                        )}
+                      </div>
                       <div className="flex flex-wrap gap-1.5 pt-1">
                         <Badge
                           variant="outline"
