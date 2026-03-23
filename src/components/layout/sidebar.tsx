@@ -18,6 +18,8 @@ import {
   FileText,
   Gamepad2,
   MessageSquare,
+  Timer,
+  Compass,
 } from 'lucide-react';
 import { useUIStore } from '@/stores/ui-store';
 import { cn } from '@/lib/utils';
@@ -27,6 +29,7 @@ const navItems = [
   { path: '/dashboard', icon: Home, label: '仪表盘' },
   { path: '/system', icon: Activity, label: '系统看板' },
   { path: '/msg-gateway', icon: MessageSquare, label: '消息网关' },
+  { path: '/cron-jobs', icon: Timer, label: '定时任务' },
   { path: '/machines', icon: Monitor, label: '远程设备' },
   { path: '/docs', icon: FileText, label: '文档中心' },
   { path: '/efficiency', icon: Gauge, label: '效能评估' },
@@ -37,6 +40,7 @@ const navItems = [
   { path: '/knowledge', icon: Brain, label: '知识库' },
   { path: '/knowledge/review', icon: RotateCcw, label: '知识复习' },
   { path: '/game-dev', icon: Gamepad2, label: '游戏开发' },
+  { path: '/life', icon: Compass, label: '生活助手' },
   { path: '/members', icon: Users, label: '家庭成员' },
   { path: '/files', icon: Upload, label: '文件管理' },
   { path: '/settings', icon: Settings, label: '设置' },

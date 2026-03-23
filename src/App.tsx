@@ -42,6 +42,14 @@ import GameDevArt2DLayout from '@/pages/game-dev-art2d-layout';
 import GameDevArt2DGenerator from '@/pages/game-dev-art2d-generator';
 import GameDevArt2DHistory from '@/pages/game-dev-art2d-history';
 import MsgGateway from '@/pages/msg-gateway';
+import CronJobs from '@/pages/cron-jobs';
+import LifeLanding from '@/pages/life/landing';
+import LifeTravelList from '@/pages/life/travel-list';
+import LifeTravelDetail from '@/pages/life/travel-detail';
+import LifeRentalList from '@/pages/life/rental-list';
+import LifeRentalDetail from '@/pages/life/rental-detail';
+import LifeAccommodationList from '@/pages/life/accommodation-list';
+import LifeAccommodationDetail from '@/pages/life/accommodation-detail';
 
 function PlanDetailRedirect() {
   const { planId } = useParams();
@@ -56,6 +64,7 @@ function App() {
         <Route path="dashboard" element={<Dashboard />} />
         <Route path="system" element={<SystemDashboard />} />
         <Route path="msg-gateway" element={<MsgGateway />} />
+        <Route path="cron-jobs" element={<CronJobs />} />
         <Route path="services" element={<ServiceCatalog />} />
         <Route path="efficiency" element={<EfficiencyEvaluator />} />
         <Route path="data-sources" element={<DataSources />} />
@@ -115,6 +124,15 @@ function App() {
           <Route path="generator" element={<GameDevArt2DGenerator />} />
           <Route path="history" element={<GameDevArt2DHistory />} />
         </Route>
+
+        {/* Life App — landing + sub-modules */}
+        <Route path="life" element={<LifeLanding />} />
+        <Route path="life/travel" element={<LifeTravelList />} />
+        <Route path="life/travel/:planId" element={<LifeTravelDetail />} />
+        <Route path="life/rental" element={<LifeRentalList />} />
+        <Route path="life/rental/:propertyId" element={<LifeRentalDetail />} />
+        <Route path="life/accommodation" element={<LifeAccommodationList />} />
+        <Route path="life/accommodation/:id" element={<LifeAccommodationDetail />} />
 
         <Route path="machines" element={<MachinesPage />} />
         <Route path="files" element={<Files />} />
