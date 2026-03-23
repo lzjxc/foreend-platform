@@ -104,6 +104,8 @@ export default function LifeRentalDetail() {
             <InfoRow label="EPC 评级" value={property.epc_rating} />
             <InfoRow label="市政税级别" value={property.council_tax_band} />
             <InfoRow label="最近地铁站" value={property.nearest_station} />
+            <InfoRow label="上架日期" value={property.listing_date} />
+            <InfoRow label="采集时间" value={property.created_at ? new Date(property.created_at).toLocaleString('zh-CN') : null} />
           </div>
         </CardContent>
       </Card>

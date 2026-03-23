@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ChevronLeft, Plus, Home, Search } from 'lucide-react';
+import { ChevronLeft, Plus, Home, Search, Loader2, CheckCircle2, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,7 +19,74 @@ import {
   useRentalSearchResult,
   usePropertyTypes,
 } from '@/hooks/use-rental';
-import type { RentalSearchInput } from '@/types/life-app';
+import type { RentalSearchInput, SearchStatus } from '@/types/life-app';
+
+// ── Search task tracker ──────────────────────────────────────
+
+interface SearchTask {
+  id: string;
+  params: RentalSearchInput;
+  submittedAt: string;
+}
+
+function SearchTaskCard({ task, onDone }: { task: SearchTask; onDone: (id: string, status: SearchStatus, total: number) => void }) {
+  const { data } = useRentalSearchResult(task.id);
+
+  useEffect(() => {
+    if (!data) return;
+    if (data.status === 'completed' || data.status === 'failed') {
+      onDone(task.id, data.status, data.total_found);
+    }
+  }, [data, task.id, onDone]);
+
+  const status = data?.status ?? 'pending';
+  const typeLabels = task.params.property_types.join(', ') || '全部';
+
+  return (
+    <div className="flex items-center gap-3 rounded-lg border bg-card px-4 py-3 text-sm">
+      {/* Status icon */}
+      {status === 'completed' ? (
+        <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />
+      ) : status === 'failed' ? (
+        <XCircle className="h-4 w-4 text-red-500 shrink-0" />
+      ) : (
+        <Loader2 className="h-4 w-4 text-orange-500 animate-spin shrink-0" />
+      )}
+
+      {/* Search params summary */}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="font-medium">{task.params.location}</span>
+          <Badge variant="secondary" className="text-xs">≥{task.params.min_bedrooms}卧</Badge>
+          <Badge variant="secondary" className="text-xs">≤£{task.params.max_price}</Badge>
+          <span className="text-xs text-muted-foreground">{typeLabels}</span>
+        </div>
+        <div className="text-xs text-muted-foreground mt-0.5">
+          提交于 {new Date(task.submittedAt).toLocaleTimeString('zh-CN')}
+          {data?.total_found != null && status === 'completed' && (
+            <span className="text-green-600 ml-2">找到 {data.total_found} 套</span>
+          )}
+          {status === 'failed' && data?.error_message && (
+            <span className="text-red-500 ml-2">{data.error_message}</span>
+          )}
+        </div>
+      </div>
+
+      {/* Status label */}
+      <span className={`text-xs shrink-0 ${
+        status === 'completed' ? 'text-green-600' :
+        status === 'failed' ? 'text-red-500' :
+        'text-orange-600'
+      }`}>
+        {status === 'pending' ? '排队中' :
+         status === 'processing' ? '搜索中...' :
+         status === 'completed' ? '已完成' : '失败'}
+      </span>
+    </div>
+  );
+}
+
+// ── Default form ─────────────────────────────────────────────
 
 const DEFAULT_FORM: RentalSearchInput = {
   location: 'Rotherhithe',
@@ -31,40 +98,41 @@ const DEFAULT_FORM: RentalSearchInput = {
   radius: 0,
 };
 
+// ── Main component ───────────────────────────────────────────
+
 export default function LifeRentalList() {
   const navigate = useNavigate();
   const [page, setPage] = useState(1);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [form, setForm] = useState<RentalSearchInput>(DEFAULT_FORM);
-  const [searchId, setSearchId] = useState<string | null>(null);
-  const [polling, setPolling] = useState(false);
+  const [tasks, setTasks] = useState<SearchTask[]>([]);
 
   const { data, isLoading } = useRentalProperties(page);
   const { data: propertyTypes } = usePropertyTypes();
   const createSearch = useCreateRentalSearch();
-  const { data: searchResult } = useRentalSearchResult(polling ? searchId : null);
 
-  // Handle polling result
-  useEffect(() => {
-    if (!searchResult) return;
-    if (searchResult.status === 'completed') {
-      setPolling(false);
-      setSearchId(null);
-      toast.success(`搜索完成，共找到 ${searchResult.total_found} 个房源`);
-    } else if (searchResult.status === 'failed') {
-      setPolling(false);
-      setSearchId(null);
-      toast.error(searchResult.error_message ?? '搜索失败，请重试');
+  const handleTaskDone = (taskId: string, status: SearchStatus, total: number) => {
+    if (status === 'completed') {
+      toast.success(`搜索完成，找到 ${total} 套房源`);
+    } else {
+      toast.error('搜索失败');
     }
-  }, [searchResult]);
+    // Keep completed/failed tasks visible for 10 seconds then remove
+    setTimeout(() => {
+      setTasks((prev) => prev.filter((t) => t.id !== taskId));
+    }, 10000);
+  };
 
   const handleSubmit = async () => {
     try {
       const result = await createSearch.mutateAsync(form);
-      setSearchId(result.id);
-      setPolling(true);
+      setTasks((prev) => [...prev, {
+        id: result.id,
+        params: { ...form },
+        submittedAt: new Date().toISOString(),
+      }]);
       setSheetOpen(false);
-      toast.info('搜索已开始，正在抓取 Rightmove 数据…');
+      toast.info('搜索已提交，正在抓取 Rightmove 数据…');
     } catch {
       toast.error('提交搜索失败');
     }
@@ -81,6 +149,7 @@ export default function LifeRentalList() {
 
   const properties = data?.items ?? [];
   const totalPages = data?.pages ?? 1;
+  const activeTasks = tasks.length;
 
   return (
     <div className="p-6 space-y-5">
@@ -107,17 +176,23 @@ export default function LifeRentalList() {
         </Button>
       </div>
 
+      {/* Active search tasks */}
+      {activeTasks > 0 && (
+        <div className="space-y-2">
+          <h2 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+            <Search className="h-3.5 w-3.5" />
+            搜索任务 ({activeTasks})
+          </h2>
+          {tasks.map((task) => (
+            <SearchTaskCard key={task.id} task={task} onDone={handleTaskDone} />
+          ))}
+        </div>
+      )}
+
       {/* Filter context badges */}
       {data && data.total > 0 && (
         <div className="flex flex-wrap gap-2">
-          <Badge variant="secondary" className="text-xs">位置: Rightmove</Badge>
-          <Badge variant="secondary" className="text-xs">最高 £{form.max_price}/月</Badge>
-          <Badge variant="secondary" className="text-xs">≥ {form.min_bedrooms} 卧室</Badge>
-          {polling && (
-            <Badge className="text-xs bg-orange-100 text-orange-700 border border-orange-200">
-              ⏳ 搜索进行中…
-            </Badge>
-          )}
+          <Badge variant="secondary" className="text-xs">共 {data.total} 套房源</Badge>
         </div>
       )}
 
@@ -129,7 +204,7 @@ export default function LifeRentalList() {
       )}
 
       {/* Empty state */}
-      {!isLoading && properties.length === 0 && (
+      {!isLoading && properties.length === 0 && activeTasks === 0 && (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-16 text-muted-foreground gap-3">
             <Home className="h-12 w-12 opacity-40" />
@@ -151,11 +226,11 @@ export default function LifeRentalList() {
               >
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between gap-3">
-                    {/* Left */}
                     <div className="flex-1 min-w-0 space-y-1">
                       <p className="font-semibold text-sm leading-snug truncate">{prop.address}</p>
                       <p className="text-xs text-muted-foreground">
                         {prop.property_type} · {prop.bedrooms} 卧 · {prop.bathrooms} 浴
+                        {prop.listing_date && <span> · {prop.listing_date}</span>}
                       </p>
                       <div className="flex flex-wrap gap-1.5 pt-1">
                         <Badge
@@ -166,8 +241,6 @@ export default function LifeRentalList() {
                         </Badge>
                       </div>
                     </div>
-
-                    {/* Price */}
                     <div className="shrink-0 text-right">
                       <p className={`font-bold text-base ${overBudget ? 'text-orange-600' : 'text-green-600'}`}>
                         £{prop.price_pcm.toLocaleString()}/月
@@ -184,23 +257,11 @@ export default function LifeRentalList() {
       {/* Pagination */}
       {totalPages > 1 && (
         <div className="flex items-center justify-center gap-2 pt-2">
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={page <= 1}
-            onClick={() => setPage((p) => p - 1)}
-          >
+          <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
             上一页
           </Button>
-          <span className="text-sm text-muted-foreground">
-            {page} / {totalPages}
-          </span>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={page >= totalPages}
-            onClick={() => setPage((p) => p + 1)}
-          >
+          <span className="text-sm text-muted-foreground">{page} / {totalPages}</span>
+          <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>
             下一页
           </Button>
         </div>
@@ -217,7 +278,6 @@ export default function LifeRentalList() {
           </SheetHeader>
 
           <div className="space-y-4 py-4">
-            {/* Location */}
             <div className="space-y-1.5">
               <label className="text-sm font-medium">位置</label>
               <Input
@@ -227,7 +287,6 @@ export default function LifeRentalList() {
               />
             </div>
 
-            {/* Location ID */}
             <div className="space-y-1.5">
               <label className="text-sm font-medium">Location ID</label>
               <Input
@@ -237,7 +296,6 @@ export default function LifeRentalList() {
               />
             </div>
 
-            {/* Max price */}
             <div className="space-y-1.5">
               <label className="text-sm font-medium">最高月租 £</label>
               <Input
@@ -248,7 +306,6 @@ export default function LifeRentalList() {
               />
             </div>
 
-            {/* Min bedrooms */}
             <div className="space-y-1.5">
               <label className="text-sm font-medium">最少卧室</label>
               <Input
@@ -259,7 +316,6 @@ export default function LifeRentalList() {
               />
             </div>
 
-            {/* Property types */}
             <div className="space-y-2">
               <label className="text-sm font-medium">房屋类型</label>
               <div className="space-y-2">
@@ -277,7 +333,6 @@ export default function LifeRentalList() {
               </div>
             </div>
 
-            {/* Radius */}
             <div className="space-y-1.5">
               <label className="text-sm font-medium">搜索半径 miles</label>
               <Input
@@ -288,7 +343,6 @@ export default function LifeRentalList() {
               />
             </div>
 
-            {/* Warning */}
             <div className="rounded-md bg-orange-50 border border-orange-200 p-3 text-sm text-orange-700">
               ⏳ 搜索约需 1-3 分钟（异步爬取 Rightmove）
             </div>

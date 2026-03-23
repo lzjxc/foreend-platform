@@ -133,6 +133,8 @@ export interface PropertySummary {
   bedrooms: number;
   bathrooms: number;
   source_url: string;
+  listing_date: string | null;
+  created_at: string | null;
 }
 
 export interface Property extends PropertySummary {
