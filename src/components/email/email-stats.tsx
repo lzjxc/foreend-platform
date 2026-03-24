@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Mail, Send, Star, TrendingUp } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Mail, Send, Star, TrendingUp, X } from 'lucide-react';
 import {
   AreaChart,
   Area,
@@ -18,10 +19,16 @@ const PERIOD_OPTIONS = [
   { label: '7天', value: 7 },
   { label: '14天', value: 14 },
   { label: '30天', value: 30 },
+  { label: '全部', value: 365 },
 ];
 
-export function EmailStats() {
+interface EmailStatsProps {
+  onDateSelect?: (date: string) => void;
+}
+
+export function EmailStats({ onDateSelect }: EmailStatsProps) {
   const [days, setDays] = useState(30);
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const { data: stats, isLoading } = useEmailStats(days);
 
   if (isLoading) {
@@ -81,8 +88,36 @@ export function EmailStats() {
           </div>
         </CardHeader>
         <CardContent>
+          {selectedDate && (
+            <div className="mb-2 flex items-center gap-2">
+              <Badge variant="secondary" className="gap-1">
+                已选择: {selectedDate}
+                <X
+                  className="h-3 w-3 cursor-pointer"
+                  onClick={() => { setSelectedDate(null); onDateSelect?.(''); }}
+                />
+              </Badge>
+              <span className="text-xs text-muted-foreground">点击图表中的日期可切换，点击 × 清除筛选</span>
+            </div>
+          )}
           <ResponsiveContainer width="100%" height={300}>
-            <AreaChart data={stats.daily_trend} margin={{ top: 5, right: 5, left: 0, bottom: 0 }}>
+            <AreaChart
+              data={stats.daily_trend}
+              margin={{ top: 5, right: 5, left: 0, bottom: 0 }}
+              onClick={(e) => {
+                if (e?.activeLabel) {
+                  const date = e.activeLabel as string;
+                  if (selectedDate === date) {
+                    setSelectedDate(null);
+                    onDateSelect?.('');
+                  } else {
+                    setSelectedDate(date);
+                    onDateSelect?.(date);
+                  }
+                }
+              }}
+              style={{ cursor: 'pointer' }}
+            >
               <defs>
                 <linearGradient id="colorReceived" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />

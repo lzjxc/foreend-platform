@@ -3,7 +3,12 @@ import { EmailList } from './email-list';
 import { EmailDetail } from './email-detail';
 import type { EmailListItem } from '@/types/email';
 
-export function EmailInbox() {
+interface EmailInboxProps {
+  dateFilter?: string;
+  onClearDateFilter?: () => void;
+}
+
+export function EmailInbox({ dateFilter, onClearDateFilter }: EmailInboxProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   return (
@@ -14,6 +19,8 @@ export function EmailInbox() {
         <EmailList
           selectedId={selectedId}
           onSelect={(email: EmailListItem) => setSelectedId(email.id)}
+          dateFilter={dateFilter}
+          onClearDateFilter={onClearDateFilter}
         />
       </div>
       {/* Right panel: email detail */}

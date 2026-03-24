@@ -933,6 +933,8 @@ export default function MsgGateway() {
 
   // Dialog states
   const [emailSettingsOpen, setEmailSettingsOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState('tasks');
+  const [emailDateFilter, setEmailDateFilter] = useState<string>('');
   const [channelDialog, setChannelDialog] = useState<{ open: boolean; channel?: MsgGwChannel | null }>({ open: false });
   const [providerDialog, setProviderDialog] = useState<{ open: boolean; provider?: MsgGwProvider | null }>({ open: false });
   const [testDialog, setTestDialog] = useState<{ open: boolean; channelName: string }>({ open: false, channelName: '' });
@@ -1012,7 +1014,7 @@ export default function MsgGateway() {
       </div>
 
       {/* Tabs */}
-      <Tabs defaultValue="tasks">
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
           <TabsTrigger value="tasks">提醒任务</TabsTrigger>
           <TabsTrigger value="channels">渠道管理</TabsTrigger>
@@ -1103,7 +1105,10 @@ export default function MsgGateway() {
               邮件设置
             </Button>
           </div>
-          <EmailStats />
+          <EmailStats onDateSelect={(date) => {
+            setEmailDateFilter(date);
+            if (date) setActiveTab('email-inbox');
+          }} />
         </TabsContent>
 
         {/* Email Inbox Tab */}
@@ -1114,7 +1119,7 @@ export default function MsgGateway() {
               邮件设置
             </Button>
           </div>
-          <EmailInbox />
+          <EmailInbox dateFilter={emailDateFilter} onClearDateFilter={() => setEmailDateFilter('')} />
         </TabsContent>
       </Tabs>
 

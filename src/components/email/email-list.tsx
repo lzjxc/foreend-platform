@@ -1,8 +1,8 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Star, Search, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Star, Search, ChevronLeft, ChevronRight, X, CalendarDays } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
@@ -24,11 +24,23 @@ const REPLY_STATUS_MAP: Record<string, { label: string; className: string }> = {
 interface EmailListProps {
   selectedId: string | null;
   onSelect: (email: EmailListItem) => void;
+  dateFilter?: string;
+  onClearDateFilter?: () => void;
 }
 
-export function EmailList({ selectedId, onSelect }: EmailListProps) {
+export function EmailList({ selectedId, onSelect, dateFilter, onClearDateFilter }: EmailListProps) {
   const [filters, setFilters] = useState<EmailListFilters>({ page: 1, size: 20 });
   const [searchInput, setSearchInput] = useState('');
+
+  // Apply external date filter from chart click
+  useEffect(() => {
+    if (dateFilter) {
+      setFilters((f) => ({ ...f, date_from: dateFilter, date_to: dateFilter, page: 1 }));
+    } else {
+      setFilters((f) => ({ ...f, date_from: undefined, date_to: undefined, page: 1 }));
+    }
+  }, [dateFilter]);
+
   const { data, isLoading } = useEmailList(filters);
 
   const handleSearch = useCallback(() => {
@@ -75,6 +87,18 @@ export function EmailList({ selectedId, onSelect }: EmailListProps) {
             <Search className="h-4 w-4" />
           </Button>
         </div>
+        {dateFilter && (
+          <div className="flex items-center gap-1">
+            <Badge variant="secondary" className="gap-1 text-xs">
+              <CalendarDays className="h-3 w-3" />
+              {dateFilter}
+              <X
+                className="h-3 w-3 cursor-pointer"
+                onClick={() => onClearDateFilter?.()}
+              />
+            </Badge>
+          </div>
+        )}
       </div>
 
       {/* Email list */}
