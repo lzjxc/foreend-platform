@@ -32,6 +32,7 @@ import {
   Clock,
   Zap,
   Bell,
+  Settings,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn, formatDateTime } from '@/lib/utils';
@@ -63,6 +64,9 @@ import type {
   NotificationStats,
   SourceStats,
 } from '@/types/msg-gw';
+import { EmailStats } from '@/components/email/email-stats';
+import { EmailInbox } from '@/components/email/email-inbox';
+import { EmailSettingsDialog } from '@/components/email/email-settings-dialog';
 
 // ==================== Constants ====================
 
@@ -928,6 +932,7 @@ export default function MsgGateway() {
   const updateProvider = useUpdateProvider();
 
   // Dialog states
+  const [emailSettingsOpen, setEmailSettingsOpen] = useState(false);
   const [channelDialog, setChannelDialog] = useState<{ open: boolean; channel?: MsgGwChannel | null }>({ open: false });
   const [providerDialog, setProviderDialog] = useState<{ open: boolean; provider?: MsgGwProvider | null }>({ open: false });
   const [testDialog, setTestDialog] = useState<{ open: boolean; channelName: string }>({ open: false, channelName: '' });
@@ -1012,6 +1017,8 @@ export default function MsgGateway() {
           <TabsTrigger value="tasks">提醒任务</TabsTrigger>
           <TabsTrigger value="channels">渠道管理</TabsTrigger>
           <TabsTrigger value="providers">Provider 管理</TabsTrigger>
+          <TabsTrigger value="email-stats">邮件概览</TabsTrigger>
+          <TabsTrigger value="email-inbox">邮件收件箱</TabsTrigger>
         </TabsList>
 
         {/* Tasks Tab */}
@@ -1087,6 +1094,28 @@ export default function MsgGateway() {
             </div>
           )}
         </TabsContent>
+
+        {/* Email Stats Tab */}
+        <TabsContent value="email-stats">
+          <div className="mb-4 flex items-center justify-end">
+            <Button variant="ghost" size="sm" onClick={() => setEmailSettingsOpen(true)}>
+              <Settings className="mr-1 h-4 w-4" />
+              邮件设置
+            </Button>
+          </div>
+          <EmailStats />
+        </TabsContent>
+
+        {/* Email Inbox Tab */}
+        <TabsContent value="email-inbox">
+          <div className="mb-4 flex items-center justify-end">
+            <Button variant="ghost" size="sm" onClick={() => setEmailSettingsOpen(true)}>
+              <Settings className="mr-1 h-4 w-4" />
+              邮件设置
+            </Button>
+          </div>
+          <EmailInbox />
+        </TabsContent>
       </Tabs>
 
       {/* Dialogs */}
@@ -1122,6 +1151,11 @@ export default function MsgGateway() {
         name={deleteDialog.name}
         onConfirm={handleDelete}
         loading={deleteChannel.isPending || deleteProvider.isPending}
+      />
+
+      <EmailSettingsDialog
+        open={emailSettingsOpen}
+        onOpenChange={setEmailSettingsOpen}
       />
     </div>
   );
