@@ -33,9 +33,13 @@ export function EmailList({ selectedId, onSelect, dateFilter, onClearDateFilter 
   const [searchInput, setSearchInput] = useState('');
 
   // Apply external date filter from chart click
+  // date_to needs to be next day because backend uses <= comparison on datetime
   useEffect(() => {
     if (dateFilter) {
-      setFilters((f) => ({ ...f, date_from: dateFilter, date_to: dateFilter, page: 1 }));
+      const nextDay = new Date(dateFilter);
+      nextDay.setDate(nextDay.getDate() + 1);
+      const nextDayStr = nextDay.toISOString().split('T')[0];
+      setFilters((f) => ({ ...f, date_from: dateFilter, date_to: nextDayStr, page: 1 }));
     } else {
       setFilters((f) => ({ ...f, date_from: undefined, date_to: undefined, page: 1 }));
     }
