@@ -27,6 +27,16 @@
 
 ### 1. Types (`src/types/email.ts`)
 
+修改现有类型：
+
+```typescript
+// EmailListItem.direction 扩展（原为 'inbound' | 'outbound'）
+direction: 'inbound' | 'outbound' | 'draft';
+
+// EmailListFilters.direction 扩展（原为 'inbound' | 'outbound'）
+direction?: 'inbound' | 'outbound' | 'draft';
+```
+
 新增类型：
 
 ```typescript
@@ -45,8 +55,11 @@ interface DraftUpdateInput {
   body?: string;
 }
 
-// 草稿列表响应 — 复用 EmailListResponse 结构（items 为 EmailListItem[]）
-// 草稿详情响应 — 复用 EmailDetail 类型（direction="draft"）
+// compose API 返回 EmailDetail（direction="draft" 或 "outbound"）
+// drafts list 返回 EmailListResponse（items 为 EmailListItem[]，direction="draft"）
+// draft detail 返回 EmailDetail（direction="draft"）
+// sendDraft 返回 EmailDetail（direction 变为 "outbound"）
+// deleteDraft 返回 { status: "deleted" }
 ```
 
 ### 2. API (`src/api/emails.ts`)
@@ -77,13 +90,15 @@ emailKeys.draftDetail: (id) => [...emailKeys.drafts(), 'detail', id]
 | Hook | 类型 | 用途 |
 |------|------|------|
 | `useDraftList(page, size)` | Query | 草稿列表 |
+| `useDraftDetail(id)` | Query | 草稿详情（加载完整 body） |
 | `useCompose()` | Mutation | 写新邮件（存草稿或发送） |
 | `useUpdateDraft()` | Mutation | 编辑草稿 |
 | `useDeleteDraft()` | Mutation | 删除草稿 |
 | `useSendDraft()` | Mutation | 发送草稿 |
 
 缓存失效策略：
-- compose/updateDraft/deleteDraft/sendDraft → invalidate `drafts` + `emailKeys.all`（列表计数可能变化）
+- `compose({send:true})` / `sendDraft` → invalidate `drafts` + `emailKeys.lists()` + `emailKeys.stats()`（发件列表和统计变化）
+- `compose({send:false})` / `updateDraft` / `deleteDraft` → invalidate `drafts` only
 
 ### 4. 新组件：`src/components/email/email-compose.tsx`
 
@@ -93,13 +108,13 @@ Props：
 ```typescript
 interface EmailComposeProps {
   draftId?: string;          // 有值=编辑草稿模式，无=新邮件模式
-  initialTo?: string;        // 草稿预填
-  initialSubject?: string;
-  initialBody?: string;
   onClose: () => void;       // 关闭编辑器，回到查看模式
-  onSaved?: () => void;      // 保存/发送成功回调
 }
 ```
+
+数据加载：
+- 新邮件模式（`draftId` 为空）：表单初始为空
+- 编辑草稿模式（`draftId` 有值）：组件内部调用 `useDraftDetail(draftId)` 加载完整草稿数据，填充表单
 
 布局（紧凑表单式）：
 - 顶部栏：标题（"新邮件" / "编辑草稿"）+ 操作按钮（存草稿 | 发送）
@@ -112,6 +127,7 @@ interface EmailComposeProps {
 - 新邮件 → `useCompose({ send: false })` 存草稿 / `useCompose({ send: true })` 发送
 - 编辑草稿 → `useUpdateDraft()` 保存 / `useSendDraft()` 发送 / `useDeleteDraft()` 删除
 - 成功后 toast 提示 + `onClose()`
+- ESC 键：`EmailCompose` 内部监听 `keydown`，触发 `onClose()`
 
 ### 5. 修改：`src/components/email/email-inbox.tsx`
 
@@ -127,9 +143,9 @@ const [editingDraftId, setEditingDraftId] = useState<string | null>(null);
 - `panelMode === 'compose'` → `<EmailCompose onClose={...}>`
 - `panelMode === 'edit-draft'` → `<EmailCompose draftId={editingDraftId} ...>`
 
-新增回调传给 EmailList：
-- `onCompose()` → 切换到 compose 模式
-- `onSelectDraft(id)` → 切换到 edit-draft 模式
+新增回调传给 EmailList（扩展 EmailListProps）：
+- `onCompose: () => void` → 切换到 compose 模式
+- `onSelectDraft: (id: string) => void` → 切换到 edit-draft 模式
 
 ### 6. 修改：`src/components/email/email-list.tsx`
 
@@ -153,12 +169,19 @@ const [editingDraftId, setEditingDraftId] = useState<string | null>(null);
 5. ESC / 点非草稿邮件 → panelMode='view' → 回到正常查看模式
 ```
 
+## 边界情况
+
+- **草稿列表空状态**：显示"暂无草稿"提示
+- **编辑中切换**：切换面板时不做未保存提示（V1 简化处理，用户可手动存草稿）
+
 ## 不做的事
 
 - 附件上传（后端暂不支持）
 - 富文本编辑器（纯文本即可）
 - CC/BCC 字段（后端 compose API 暂不支持）
 - 邮件模板
+- 自动保存草稿 / 定时保存
+- 未保存更改提示弹窗（V1 简化）
 
 ## 引用上下文
 
