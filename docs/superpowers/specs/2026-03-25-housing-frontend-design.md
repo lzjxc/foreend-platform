@@ -32,9 +32,10 @@ Per `~/.claude/rules/frontend-style.md`:
 
 | Status | Color | Usage |
 |--------|-------|-------|
-| Active / Paid | Green | Tenancy active, bill paid |
+| Active / Paid | Green | Tenancy active, bill `paid === true` |
 | Draft | Yellow | New tenancy not yet confirmed |
-| Unpaid / Pending | Orange | Bills awaiting payment |
+| Unpaid | Orange | Bill `paid === false` and `due_date` not past |
+| Overdue | Red | Bill `paid === false` and `due_date` past |
 | Ended / Inactive | Gray | Past tenancies |
 | Auto match | Blue | Webhook auto-classified emails |
 | Utility match / Document | Purple | Utility-level email match, document types |
@@ -44,17 +45,20 @@ Per `~/.claude/rules/frontend-style.md`:
 
 ```
 /life                                          → Landing (add housing card)
-/life/housing                                  → Property list (card grid + search/filter)
+/life/housing                                  → Property list (card grid + search/filter + pagination)
 /life/housing/new                              → Create property (manual / from email)
 /life/housing/:propertyId                      → Property detail (tenancy list + edit)
 /life/housing/:propertyId/tenancy/:tenancyId   → Tenancy detail (single-page scroll)
 ```
+
+**Route ordering**: In `App.tsx`, `/life/housing/new` must be defined **before** `/life/housing/:propertyId` so the static route takes precedence over the dynamic segment. All routes are flat (no nested `<Route>` with `<Outlet>`).
 
 ## Page Designs
 
 ### 1. Property List (`/life/housing`)
 
 - **Top bar**: Search input (address/postcode) + city filter dropdown
+- **Pagination**: Page controls at bottom (backend supports `page` + `page_size` params)
 - **Action buttons**: "手动创建" (primary blue) + "从邮件初始化" (purple)
 - **Card grid**: 2-column grid, each card shows:
   - Property address, city, postcode, type, bedrooms
@@ -169,16 +173,14 @@ Reuse existing clients — no new Axios instances:
 
 ## File Structure
 
-### New Files (14)
+### New Files (13)
 
 ```
 src/
 ├── types/
-│   └── housing.ts                    # Property, Tenancy, Utility, Bill, Document, EmailLink types + enums
-├── api/
-│   └── housing.ts                    # API functions using lifeAppClient
+│   └── housing.ts                    # Property, Tenancy, Utility, Bill, Document, EmailLink types + enums + Create/Update input types
 ├── hooks/
-│   └── use-housing.ts                # React Query hooks for all housing entities
+│   └── use-housing.ts                # React Query hooks + inline API calls (follows existing life module pattern, imports lifeAppClient directly)
 ├── components/
 │   └── housing/
 │       ├── property-card.tsx          # Property card for list page
@@ -205,8 +207,10 @@ src/
 src/
 ├── pages/life/landing.tsx             # Add housing module card (icon, count, path)
 ├── components/email/email-detail.tsx  # Add "初始化为房产" action button
-└── App.tsx                            # Add /life/housing/* routes
+└── App.tsx                            # Add /life/housing/* routes (new before :propertyId)
 ```
+
+**Total: 13 new files + 3 modified files**
 
 ## Type Definitions
 
@@ -217,7 +221,7 @@ src/
 export type PropertyType = 'apartment' | 'house' | 'studio' | 'room' | 'other';
 export type TenancyStatus = 'draft' | 'active' | 'ended';
 export type UtilityType = 'electricity' | 'gas' | 'water' | 'internet' | 'council_tax' | 'other';
-export type DocumentType = 'contract' | 'epc' | 'gas_safety' | 'how_to_rent' | 'inventory' | 'deposit_cert' | 'other';
+export type HousingDocumentType = 'contract' | 'epc' | 'gas_safety' | 'how_to_rent' | 'inventory' | 'deposit_cert' | 'other';
 export type MatchType = 'auto' | 'manual';
 
 // Property
@@ -252,6 +256,52 @@ export interface PropertyCreate {
 export interface PropertyUpdate extends Partial<PropertyCreate> {}
 
 // Tenancy
+export interface TenancyCreate {
+  property_id: string;
+  status?: TenancyStatus;
+  landlord_name?: string;
+  landlord_contact?: string;
+  agent_name?: string;
+  agent_contact?: string;
+  agent_email?: string;
+  rent_pcm?: number;
+  deposit_amount?: number;
+  deposit_scheme?: string;
+  start_date?: string;
+  end_date?: string;
+  contract_signed_date?: string;
+  email_keywords?: string[];
+  notes?: string;
+}
+
+export interface TenancyUpdate extends Partial<Omit<TenancyCreate, 'property_id'>> {}
+
+// Utility
+export interface UtilityCreate {
+  type: UtilityType;
+  provider: string;
+  account_number?: string;
+  monthly_cost?: number;
+  contact_info?: string;
+  email_keywords?: string[];
+  notes?: string;
+}
+
+export interface UtilityUpdate extends Partial<UtilityCreate> {}
+
+// Bill
+export interface BillCreate {
+  amount: number;
+  period_start?: string;
+  period_end?: string;
+  due_date?: string;
+  paid?: boolean;
+  paid_date?: string;
+  notes?: string;
+}
+
+export interface BillUpdate extends Partial<BillCreate> {}
+
 export interface Tenancy {
   id: string;
   property_id: string;
@@ -312,7 +362,7 @@ export interface Bill {
 export interface HousingDocument {
   id: string;
   tenancy_id: string;
-  type: DocumentType;
+  type: HousingDocumentType;
   name: string;
   minio_bucket: string;
   minio_key: string;
@@ -320,6 +370,7 @@ export interface HousingDocument {
   content_type: string;
   source_email_id: string | null;
   uploaded_at: string;
+  updated_at: string;
   notes: string | null;
 }
 
@@ -374,12 +425,23 @@ export const housingKeys = {
 //   useInitFromEmail
 ```
 
+## UI States
+
+- **Loading**: Skeleton placeholders for cards and tables (consistent with existing modules)
+- **Empty**: Illustration + CTA text ("还没有房产，创建第一个吧") for lists
+- **Error**: Toast notification (Sonner) for API errors, inline error messages for forms
+
 ## Error Handling
 
 - API errors → toast notification (Sonner)
 - Init from email LLM timeout → show raw email content, fall back to manual creation form
 - File upload failure → toast with retry option
 - Email sync partial failure → dialog still shows successful matches
+
+## Known Limitations
+
+- **No delete for utilities/bills/documents individually** — backend only supports cascade delete via tenancy/property. Utility edit form is inline within `utility-section.tsx` (expand on card click).
+- **Standalone tenancy list endpoint** (`GET /api/v1/housing/tenancies`) — used only for the property detail page to fetch tenancies for a given property. No cross-property tenancy view in this iteration.
 
 ## Mockup Reference
 
