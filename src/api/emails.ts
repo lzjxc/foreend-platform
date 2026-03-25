@@ -8,6 +8,8 @@ import type {
   EmailListFilters,
   DraftResponse,
   SendResponse,
+  ComposeEmailInput,
+  DraftUpdateInput,
 } from '@/types/email';
 
 export const emailApi = {
@@ -44,4 +46,22 @@ export const emailApi = {
 
   sendReply: (id: string, body: string) =>
     msgGwClient.post<SendResponse>(`/api/v1/emails/${id}/send`, { body }),
+
+  compose: (data: ComposeEmailInput) =>
+    msgGwClient.post<EmailDetail>('/api/v1/emails/compose', data),
+
+  listDrafts: (page = 1, size = 20) =>
+    msgGwClient.get<EmailListResponse>(`/api/v1/emails/drafts?page=${page}&size=${size}`),
+
+  getDraft: (id: string) =>
+    msgGwClient.get<EmailDetail>(`/api/v1/emails/drafts/${id}`),
+
+  updateDraft: (id: string, data: DraftUpdateInput) =>
+    msgGwClient.put<EmailDetail>(`/api/v1/emails/drafts/${id}`, data),
+
+  deleteDraft: (id: string) =>
+    msgGwClient.delete<{ status: string }>(`/api/v1/emails/drafts/${id}`),
+
+  sendDraft: (id: string) =>
+    msgGwClient.post<EmailDetail>(`/api/v1/emails/drafts/${id}/send`),
 };
