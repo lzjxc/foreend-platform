@@ -29,6 +29,7 @@
 | 游戏开发 | `/game-dev` | Landing(6 模块卡片) → 技能设计/框架设计(已实现) |
 | 技能设计 | `/game-dev/skills/*` | 原子库、参考技能、修饰器、规则、工作台(三栏布局) |
 | 框架设计 | `/game-dev/framework` | AI 辅助游戏系统设计(概念→蓝图→数值→GDD) |
+| 房产管理 | `/life/housing` | Property→Tenancy 两层结构、水电账单、文档上传、邮件自动分类 |
 | 家庭成员 | `/members` | 证件/地址/银行账户/医疗记录、表单填充 |
 | 文件管理 | `/files` | MinIO 文件浏览器 |
 | 设置 | `/settings` | 系统设置 |
@@ -87,6 +88,7 @@ personal-info-frontend/
 │   │   ├── use-plans.ts         # 学习计划 hooks
 │   │   ├── use-review.ts        # 复习队列 hooks
 │   │   ├── use-emails.ts        # 邮件管理 hooks (list, detail, stats, settings, draft, send)
+│   │   ├── use-housing.ts       # 房产管理 hooks (properties, tenancies, utilities, bills, docs, emails)
 │   │   ├── use-doc-service.ts   # 文档服务 hooks
 │   │   ├── use-finance.ts       # 财务数据 hooks
 │   │   ├── use-homework.ts      # 作业 hooks
@@ -140,6 +142,17 @@ personal-info-frontend/
 │   │   │   ├── email-list.tsx           # 左侧邮件列表 (筛选+搜索+分页)
 │   │   │   ├── email-detail.tsx         # 右侧邮件详情 (HTML渲染+回复)
 │   │   │   └── email-settings-dialog.tsx # 设置弹窗 (白名单+LLM+静默)
+│   │   ├── housing/             # 房产管理组件 (10 个)
+│   │   │   ├── property-card.tsx        # 房产卡片 (列表页)
+│   │   │   ├── property-form.tsx        # 房产创建/编辑 Sheet 表单
+│   │   │   ├── tenancy-form.tsx         # 租约创建/编辑 Sheet 表单
+│   │   │   ├── tenancy-anchor-nav.tsx   # 侧边锚点导航 (IntersectionObserver)
+│   │   │   ├── utility-section.tsx      # 水电账户区域 (网格+内联编辑)
+│   │   │   ├── bill-section.tsx         # 账单区域 (表格+筛选+内联编辑)
+│   │   │   ├── document-section.tsx     # 文档区域 (网格+拖拽上传)
+│   │   │   ├── email-section.tsx        # 关联邮件区域
+│   │   │   ├── email-sync-dialog.tsx    # 邮件同步结果弹窗
+│   │   │   └── email-init-dialog.tsx    # 从邮件初始化弹窗 (LLM 解析)
 │   │   ├── system/              # 系统看板组件
 │   │   │   ├── skill-usage-stats.tsx  # Skill 用量统计
 │   │   │   └── service-architecture-diagram.tsx
@@ -181,6 +194,12 @@ personal-info-frontend/
 │   │   ├── game-dev-rules.tsx   # 规则 (原子对+类型标签)
 │   │   ├── game-dev-workshop.tsx # 框架设计项目列表
 │   │   ├── game-dev-workshop-detail.tsx # 框架设计项目详情 (AI 辅助)
+│   │   ├── life/
+│   │   │   ├── landing.tsx              # 生活助手 Landing (4 模块卡片: 旅游/找房/住宿/房产)
+│   │   │   ├── housing-list.tsx         # 房产列表页 (卡片网格+搜索+分页)
+│   │   │   ├── housing-new.tsx          # 创建房产页 (手动/从邮件初始化)
+│   │   │   ├── housing-detail.tsx       # 房产详情页 (租约列表)
+│   │   │   └── housing-tenancy-detail.tsx # 租约详情页 (单页滚动+侧边锚点)
 │   │   ├── files.tsx            # 文件管理
 │   │   ├── wordbook.tsx         # 单词本
 │   │   ├── homework/            # 作业 (中文/数学/英语/批改)
@@ -191,11 +210,12 @@ personal-info-frontend/
 │   │   ├── constants.ts         # 常量定义
 │   │   └── validators.ts        # Zod schemas
 │   │
-│   └── types/                   # TypeScript 类型 (22 个)
+│   └── types/                   # TypeScript 类型 (23 个)
 │       ├── knowledge.ts         # 知识库类型 (Atom, ReviewAtom, LearningPlan 等)
 │       ├── game-design.ts       # 技能设计类型 (SkillAtom, Rule, OriginalSkill, SkillInstance, Modifier)
 │       ├── game-workshop.ts     # 框架设计类型 (Project, Phase, AISection, DesignEntry)
 │       ├── email.ts             # 邮件类型 (EmailListItem, EmailDetail, EmailStats, EmailSettings)
+│       ├── housing.ts           # 房产类型 (Property, Tenancy, Utility, Bill, HousingDocument, EmailLink)
 │       ├── doc-service.ts       # 文档服务类型 (Document, Timeline, ArgoApp)
 │       ├── homework.ts          # 作业类型
 │       ├── finance.ts           # 财务类型
@@ -285,6 +305,20 @@ export const msgGwClient = createApiClient('/notification-api');    // 消息网
 | | `/api/v1/emails/{id}/draft` | POST | LLM 生成回复草稿 |
 | | `/api/v1/emails/{id}/send` | POST | 确认发送回复 |
 | | `/api/v1/emails/backfill` | POST | 回填 IMAP 历史邮件 |
+| **房产管理** (via `/life-api`) | `/api/v1/housing/properties` | GET/POST | 房产列表/创建 |
+| | `/api/v1/housing/properties/{id}` | GET/PATCH/DELETE | 房产详情/更新/删除 |
+| | `/api/v1/housing/tenancies` | GET/POST | 租约列表/创建 |
+| | `/api/v1/housing/tenancies/{id}` | GET/PATCH/DELETE | 租约详情/更新/删除 |
+| | `/api/v1/housing/init-from-email` | POST | 从邮件初始化房产+租约 (LLM) |
+| | `/api/v1/housing/tenancies/{id}/utilities` | POST | 添加水电账户 |
+| | `/api/v1/housing/utilities/{id}` | PATCH | 更新水电账户 |
+| | `/api/v1/housing/utilities/{id}/bills` | POST | 添加账单 |
+| | `/api/v1/housing/bills/{id}` | PATCH | 更新账单 |
+| | `/api/v1/housing/tenancies/{id}/documents` | POST | 上传文档 (→MinIO) |
+| | `/api/v1/housing/documents/{id}/download` | GET | 下载文档 |
+| | `/api/v1/housing/tenancies/{id}/emails/sync` | POST | 同步关联邮件 |
+| | `/api/v1/housing/tenancies/{id}/emails` | POST | 手动关联邮件 |
+| | `/api/v1/housing/email-links/{id}` | DELETE | 解绑邮件 |
 
 ### 3.3 React Query Hooks 示例
 
@@ -856,8 +890,10 @@ export default App;
 | 家庭成员 `/members` | 家庭成员 / 表单填充 | 嵌套路由 + `MembersLayout` |
 | 知识复习 `/knowledge/review` | 知识复习 / 学习计划 | 扁平路由 + 内联 PageTabs |
 | 技能设计 `/game-dev/skills` | 工作台 / 原子库 / 参考技能 / 修饰器 / 规则 | 嵌套路由 + `GameDevLayout` |
+| 房产管理 `/life/housing` | 列表 / 新建 / 详情 / 租约详情 | 扁平路由, 单页滚动+锚点导航 |
 
 知识复习使用内联 PageTabs（非 Layout wrapper）是因为复习进行中需要隐藏 tab 实现沉浸模式。
+房产管理使用单页滚动+侧边锚点导航（非 Tab 切换），一眼看到租约全貌。
 
 ### 8.3 旧路由重定向
 
@@ -993,6 +1029,7 @@ npm run electron:build
 
 | 日期 | 变更 | 作者 |
 |------|------|------|
+| 2026-03-25 | 新增房产管理模块(Property→Tenancy两层结构、水电账单、文档上传、邮件自动分类、从邮件初始化) | Claude |
 | 2026-03-25 | 新增邮件管理模块(概览统计+分栏收件箱+回复工作流+白名单设置+历史回填) | Claude |
 | 2026-03-13 | 消息网关增强：按源统计通知次数、可展开日志列表、计数标签优化 | Claude |
 | 2026-03-12 | 新增消息网关模块(渠道管理/Provider管理/测试发送/热加载) | Claude |
