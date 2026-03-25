@@ -28,3 +28,6 @@ npm-debug.log*
 .cache/
 .eslintcache
 nul
+
+# Worktrees
+.worktrees/
