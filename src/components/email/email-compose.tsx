@@ -45,10 +45,10 @@ export function EmailCompose({ draftId, onClose }: EmailComposeProps) {
     if (!to.trim()) { toast.error('请填写收件人'); return; }
     try {
       if (draftId) {
-        await updateDraft.mutateAsync({ id: draftId, to: to.trim(), subject, body });
+        await updateDraft.mutateAsync({ id: draftId, to: [to.trim()], subject, body });
         toast.success('草稿已保存');
       } else {
-        await compose.mutateAsync({ to: to.trim(), subject, body, send: false });
+        await compose.mutateAsync({ to: [to.trim()], subject, body, send: false });
         toast.success('草稿已保存');
       }
       onClose();
@@ -63,10 +63,10 @@ export function EmailCompose({ draftId, onClose }: EmailComposeProps) {
     try {
       if (draftId) {
         // Save changes first, then send
-        await updateDraft.mutateAsync({ id: draftId, to: to.trim(), subject, body });
+        await updateDraft.mutateAsync({ id: draftId, to: [to.trim()], subject, body });
         await sendDraft.mutateAsync(draftId);
       } else {
-        await compose.mutateAsync({ to: to.trim(), subject, body, send: true });
+        await compose.mutateAsync({ to: [to.trim()], subject, body, send: true });
       }
       toast.success('邮件已发送');
       onClose();

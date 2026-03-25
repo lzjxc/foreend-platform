@@ -101,14 +101,14 @@ export interface SendResponse {
 }
 
 export interface ComposeEmailInput {
-  to: string;
+  to: string[];
   subject: string;
   body: string;
   send?: boolean;
 }
 
 export interface DraftUpdateInput {
-  to?: string;
+  to?: string[];
   subject?: string;
   body?: string;
 }
