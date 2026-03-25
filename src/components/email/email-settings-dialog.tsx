@@ -62,10 +62,25 @@ export function EmailSettingsDialog({ open, onOpenChange }: EmailSettingsDialogP
   };
 
   const handleSave = async () => {
+    // Auto-add any pending input before saving
+    const finalSenders = [...senders];
+    const finalDomains = [...domains];
+    const pendingSender = newSender.trim();
+    const pendingDomain = newDomain.trim();
+    if (pendingSender && !finalSenders.includes(pendingSender)) {
+      finalSenders.push(pendingSender);
+      setSenders(finalSenders);
+      setNewSender('');
+    }
+    if (pendingDomain && !finalDomains.includes(pendingDomain)) {
+      finalDomains.push(pendingDomain);
+      setDomains(finalDomains);
+      setNewDomain('');
+    }
     try {
       await updateSettings.mutateAsync({
-        whitelist_senders: senders,
-        whitelist_domains: domains,
+        whitelist_senders: finalSenders,
+        whitelist_domains: finalDomains,
         llm_analysis_enabled: llmEnabled,
         quiet_hours: quietHoursEnabled ? { start: quietStart, end: quietEnd } : null,
       });
