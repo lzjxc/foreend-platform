@@ -1,8 +1,9 @@
 import { useNavigate } from 'react-router-dom';
-import { Plane, Home, Hotel } from 'lucide-react';
+import { Plane, Home, Hotel, Building2 } from 'lucide-react';
 import { useTravelPlans } from '@/hooks/use-travel';
 import { useRentalProperties } from '@/hooks/use-rental';
 import { useAccommodationListings } from '@/hooks/use-accommodation';
+import { useProperties } from '@/hooks/use-housing';
 
 interface ModuleCard {
   id: string;
@@ -21,6 +22,7 @@ export default function LifeLanding() {
   const { data: travelData } = useTravelPlans(1, 1);
   const { data: rentalData } = useRentalProperties(1, 1);
   const { data: accommodationData } = useAccommodationListings(1, 1);
+  const { data: housingData } = useProperties(1, 1);
 
   const modules: ModuleCard[] = [
     {
@@ -52,6 +54,16 @@ export default function LifeLanding() {
       iconBg: 'bg-green-500',
       countLabel: (n) => `${n} 个住宿`,
       count: accommodationData?.total,
+    },
+    {
+      id: 'housing',
+      title: '房产管理',
+      description: '租约 · 水电账单 · 文档 · 邮件',
+      icon: Building2,
+      path: '/life/housing',
+      iconBg: 'bg-emerald-500',
+      countLabel: (n) => `${n} 处房产`,
+      count: housingData?.total,
     },
   ];
 

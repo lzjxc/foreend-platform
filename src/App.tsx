@@ -50,6 +50,10 @@ import LifeRentalList from '@/pages/life/rental-list';
 import LifeRentalDetail from '@/pages/life/rental-detail';
 import LifeAccommodationList from '@/pages/life/accommodation-list';
 import LifeAccommodationDetail from '@/pages/life/accommodation-detail';
+import LifeHousingList from '@/pages/life/housing-list';
+import LifeHousingNew from '@/pages/life/housing-new';
+import LifeHousingDetail from '@/pages/life/housing-detail';
+import LifeHousingTenancyDetail from '@/pages/life/housing-tenancy-detail';
 
 function PlanDetailRedirect() {
   const { planId } = useParams();
@@ -133,6 +137,10 @@ function App() {
         <Route path="life/rental/:propertyId" element={<LifeRentalDetail />} />
         <Route path="life/accommodation" element={<LifeAccommodationList />} />
         <Route path="life/accommodation/:id" element={<LifeAccommodationDetail />} />
+        <Route path="life/housing" element={<LifeHousingList />} />
+        <Route path="life/housing/new" element={<LifeHousingNew />} />
+        <Route path="life/housing/:propertyId" element={<LifeHousingDetail />} />
+        <Route path="life/housing/:propertyId/tenancy/:tenancyId" element={<LifeHousingTenancyDetail />} />
 
         <Route path="machines" element={<MachinesPage />} />
         <Route path="files" element={<Files />} />

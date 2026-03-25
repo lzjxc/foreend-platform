@@ -2,7 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Mail, Star, Paperclip, Send, Loader2, X } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Mail, Star, Paperclip, Send, Loader2, X, Home } from 'lucide-react';
 import DOMPurify from 'dompurify';
 import { format } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
@@ -19,6 +20,7 @@ const IMPORTANCE_LABELS: Record<string, string> = {
 };
 
 export function EmailDetail({ emailId }: EmailDetailProps) {
+  const navigate = useNavigate();
   const { data: email, isLoading } = useEmailDetail(emailId || '');
   const markRead = useMarkEmailRead();
   const generateDraft = useGenerateDraft();
@@ -155,10 +157,19 @@ export function EmailDetail({ emailId }: EmailDetailProps) {
       {email.direction === 'inbound' && (
         <div className="border-t p-4">
           {replyMode === 'idle' && (
-            <Button variant="outline" onClick={() => setReplyMode('intent')}>
-              <Send className="mr-2 h-4 w-4" />
-              回复
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setReplyMode('intent')}>
+                <Send className="mr-2 h-4 w-4" />
+                回复
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => navigate(`/life/housing/new?email_id=${email.id}`)}
+              >
+                <Home className="mr-2 h-4 w-4" />
+                初始化为房产
+              </Button>
+            </div>
           )}
 
           {replyMode === 'intent' && (
