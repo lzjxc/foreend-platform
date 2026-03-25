@@ -1,7 +1,7 @@
 export interface EmailListItem {
   id: string;
   seq: number;
-  direction: 'inbound' | 'outbound';
+  direction: 'inbound' | 'outbound' | 'draft';
   from_address: string;
   from_name: string | null;
   subject: string | null;
@@ -81,7 +81,7 @@ export interface EmailSettingsUpdate {
 export interface EmailListFilters {
   page?: number;
   size?: number;
-  direction?: 'inbound' | 'outbound';
+  direction?: 'inbound' | 'outbound' | 'draft';
   important?: boolean;
   search?: string;
   date_from?: string;
@@ -98,4 +98,17 @@ export interface SendResponse {
   status: string;
   to: string;
   subject: string;
+}
+
+export interface ComposeEmailInput {
+  to: string;
+  subject: string;
+  body: string;
+  send?: boolean;
+}
+
+export interface DraftUpdateInput {
+  to?: string;
+  subject?: string;
+  body?: string;
 }
