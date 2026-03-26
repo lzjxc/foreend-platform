@@ -47,8 +47,19 @@ export const emailApi = {
   sendReply: (id: string, body: string) =>
     msgGwClient.post<SendResponse>(`/api/v1/emails/${id}/send`, { body }),
 
-  compose: (data: ComposeEmailInput) =>
-    msgGwClient.post<EmailDetail>('/api/v1/emails/compose', data),
+  compose: (data: ComposeEmailInput) => {
+    if (data.attachments && data.attachments.length > 0) {
+      const form = new FormData();
+      data.to.forEach((t) => form.append('to', t));
+      form.append('subject', data.subject);
+      form.append('body', data.body);
+      if (data.send !== undefined) form.append('send', String(data.send));
+      data.attachments.forEach((f) => form.append('attachments', f));
+      return msgGwClient.post<EmailDetail>('/api/v1/emails/compose', form);
+    }
+    const { attachments: _a, ...rest } = data;
+    return msgGwClient.post<EmailDetail>('/api/v1/emails/compose', rest);
+  },
 
   listDrafts: (page = 1, size = 20) =>
     msgGwClient.get<EmailListResponse>(`/api/v1/emails/drafts?page=${page}&size=${size}`),
@@ -56,8 +67,18 @@ export const emailApi = {
   getDraft: (id: string) =>
     msgGwClient.get<EmailDetail>(`/api/v1/emails/drafts/${id}`),
 
-  updateDraft: (id: string, data: DraftUpdateInput) =>
-    msgGwClient.put<EmailDetail>(`/api/v1/emails/drafts/${id}`, data),
+  updateDraft: (id: string, data: DraftUpdateInput) => {
+    if (data.attachments && data.attachments.length > 0) {
+      const form = new FormData();
+      if (data.to) data.to.forEach((t) => form.append('to', t));
+      if (data.subject !== undefined) form.append('subject', data.subject);
+      if (data.body !== undefined) form.append('body', data.body);
+      data.attachments.forEach((f) => form.append('attachments', f));
+      return msgGwClient.put<EmailDetail>(`/api/v1/emails/drafts/${id}`, form);
+    }
+    const { attachments: _a, ...rest } = data;
+    return msgGwClient.put<EmailDetail>(`/api/v1/emails/drafts/${id}`, rest);
+  },
 
   deleteDraft: (id: string) =>
     msgGwClient.delete<{ status: string }>(`/api/v1/emails/drafts/${id}`),

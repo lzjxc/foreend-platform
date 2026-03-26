@@ -105,10 +105,12 @@ export interface ComposeEmailInput {
   subject: string;
   body: string;
   send?: boolean;
+  attachments?: File[];
 }
 
 export interface DraftUpdateInput {
   to?: string[];
   subject?: string;
   body?: string;
+  attachments?: File[];
 }
