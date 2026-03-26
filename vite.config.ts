@@ -189,6 +189,12 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (p: string) => p.replace(/^\/design-image-api/, ''),
       },
+      // Proxy Starling Bank Adapter API (NodePort TBD - update when service is deployed)
+      '/starling-api': {
+        target: 'http://192.168.1.191:30800',
+        changeOrigin: true,
+        rewrite: (p: string) => p.replace(/^\/starling-api/, ''),
+      },
       // Proxy Life App API (travel, rental, accommodation)
       '/life-api': {
         target: 'http://192.168.1.191:32009',

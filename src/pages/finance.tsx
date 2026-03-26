@@ -65,6 +65,7 @@ import {
   useAllEstimatedBalances,
   useUpdateAccountBalance,
 } from '@/hooks/use-finance';
+import { useStarlingBalance } from '@/hooks/use-starling';
 import {
   formatCurrency,
   getPlatformInfo,
@@ -1289,6 +1290,87 @@ function CurrencySummaryRow({
   );
 }
 
+// Starling Bank Card Component
+function StarlingCard() {
+  const { data, isLoading, isError } = useStarlingBalance();
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <div className="flex items-center gap-2">
+          <div className="h-7 w-7 rounded-full bg-teal-500 flex items-center justify-center">
+            <Wallet className="h-4 w-4 text-white" />
+          </div>
+          <CardTitle className="text-base">Starling Bank</CardTitle>
+          {data && (
+            <Badge variant="outline" className="ml-auto text-xs">
+              {data.balance.currency}
+            </Badge>
+          )}
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {isLoading ? (
+          <>
+            <div className="flex gap-4">
+              <Skeleton className="h-12 w-36" />
+              <Skeleton className="h-12 w-36" />
+            </div>
+            <Skeleton className="h-24 w-full" />
+          </>
+        ) : isError ? (
+          <p className="text-sm text-muted-foreground">暂时无法获取 Starling 账户数据</p>
+        ) : data ? (
+          <>
+            {/* Balance */}
+            <div className="flex flex-wrap gap-6">
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">已清算余额</p>
+                <p className="text-2xl font-bold text-teal-600">
+                  {data.balance.currency} {data.balance.cleared.toFixed(2)}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">有效余额</p>
+                <p className="text-2xl font-bold">
+                  {data.balance.currency} {data.balance.effective.toFixed(2)}
+                </p>
+              </div>
+            </div>
+
+            {/* Recent Transactions */}
+            {data.transactions.length > 0 && (
+              <div>
+                <p className="text-xs font-medium text-muted-foreground mb-2">最近交易</p>
+                <div className="space-y-2">
+                  {data.transactions.map((tx, i) => (
+                    <div key={i} className="flex items-center justify-between text-sm">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className={`shrink-0 p-1 rounded-full ${tx.direction === 'IN' ? 'bg-green-100' : 'bg-red-100'}`}>
+                          {tx.direction === 'IN' ? (
+                            <ArrowDownRight className="h-3 w-3 text-green-600" />
+                          ) : (
+                            <ArrowUpRight className="h-3 w-3 text-red-600" />
+                          )}
+                        </div>
+                        <span className="truncate text-muted-foreground">{tx.counterparty_name}</span>
+                        <span className="shrink-0 text-xs text-muted-foreground">{tx.date}</span>
+                      </div>
+                      <span className={`shrink-0 font-medium ml-3 ${tx.direction === 'IN' ? 'text-green-600' : 'text-red-600'}`}>
+                        {tx.direction === 'IN' ? '+' : '-'}{tx.currency} {tx.amount.toFixed(2)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </>
+        ) : null}
+      </CardContent>
+    </Card>
+  );
+}
+
 // Main Finance Page
 export default function FinancePage() {
   const [datePreset, setDatePreset] = useState('30d');
@@ -1557,6 +1639,9 @@ export default function FinancePage() {
           )}
         </div>
       )}
+
+      {/* Starling Bank Account */}
+      <StarlingCard />
 
       {/* Budget Alerts */}
       {budgetAlerts && budgetAlerts.length > 0 && (

@@ -176,6 +176,10 @@ export const devTrackerClient = createApiClient(DEV_TRACKER_URL);
 const LIFE_APP_URL = '/life-api';  // Both dev (Vite) and prod (nginx)
 export const lifeAppClient = createApiClient(LIFE_APP_URL, false, 120000);
 
+// Starling Bank Adapter API client - use proxy
+const STARLING_API_URL = '/starling-api';  // Both dev (Vite) and prod (nginx)
+export const starlingClient = createApiClient(STARLING_API_URL);
+
 // Helper function to handle API responses
 export async function handleApiResponse<T>(promise: Promise<{ data: T }>): Promise<T> {
   const response = await promise;
