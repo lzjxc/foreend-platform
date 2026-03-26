@@ -136,31 +136,34 @@ const cameraApi = {
   },
 };
 
-export function useCameraStatus() {
+export function useCameraStatus(enabled = true) {
   return useQuery({
     queryKey: cameraKeys.status(),
     queryFn: cameraApi.getStatus,
     staleTime: 10 * 1000,
-    retry: 3,
-    retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 10000),
+    retry: 1,
+    retryDelay: 2000,
+    enabled,
   });
 }
 
-export function useCameraStorageStatus() {
+export function useCameraStorageStatus(enabled = true) {
   return useQuery({
     queryKey: cameraKeys.storageStatus(),
     queryFn: cameraApi.getStorageStatus,
     staleTime: 30 * 1000,
     retry: 1,
+    enabled,
   });
 }
 
-export function useSnapshotList() {
+export function useSnapshotList(enabled = true) {
   return useQuery({
     queryKey: cameraKeys.snapshots(),
     queryFn: cameraApi.listSnapshots,
     staleTime: 30 * 1000,
     retry: 1,
+    enabled,
   });
 }
 

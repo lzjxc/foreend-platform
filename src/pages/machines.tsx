@@ -208,10 +208,11 @@ function HlsPlayer({ src }: { src: string }) {
 function CameraSection() {
   const [previewTs, setPreviewTs] = useState(Date.now());
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
+  const [cameraEnabled, setCameraEnabled] = useState(true);
 
-  const { data: cameraStatus, isLoading: cameraLoading, error: cameraError, refetch: refetchCamera, isFetching: cameraFetching } = useCameraStatus();
-  const { data: storageStatus } = useCameraStorageStatus();
-  const { data: snapshotData, isLoading: snapshotsLoading } = useSnapshotList();
+  const { data: cameraStatus, isLoading: cameraLoading, error: cameraError, refetch: refetchCamera, isFetching: cameraFetching } = useCameraStatus(cameraEnabled);
+  const { data: storageStatus } = useCameraStorageStatus(cameraEnabled);
+  const { data: snapshotData, isLoading: snapshotsLoading } = useSnapshotList(cameraEnabled);
   const takeSnapshotMutation = useTakeSnapshot();
   const uploadMutation = useUploadSnapshot();
   const startStreamMutation = useStartStream();
@@ -255,12 +256,47 @@ function CameraSection() {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
+  if (!cameraEnabled) {
+    return (
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Camera className="h-5 w-5 text-muted-foreground" />
+              <CardTitle className="text-lg">MacBook 摄像头</CardTitle>
+              <Badge variant="secondary">已停止</Badge>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setCameraEnabled(true)}
+            >
+              <RefreshCw className="h-4 w-4" />
+              <span className="ml-1">重新检查</span>
+            </Button>
+          </div>
+          <CardDescription>摄像头状态检查已停止</CardDescription>
+        </CardHeader>
+      </Card>
+    );
+  }
+
   if (cameraLoading) {
     return (
       <Card>
-        <CardContent className="flex items-center gap-2 py-8 text-muted-foreground">
-          <Loader2 className="h-4 w-4 animate-spin" />
-          <span>检查摄像头状态...</span>
+        <CardContent className="flex items-center justify-between py-8">
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            <span>检查摄像头状态...</span>
+          </div>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => setCameraEnabled(false)}
+          >
+            <X className="mr-1 h-4 w-4" />
+            停止检查
+          </Button>
         </CardContent>
       </Card>
     );
