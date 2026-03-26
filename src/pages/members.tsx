@@ -6,6 +6,13 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog';
+import {
   Users,
   Plus,
   Search,
@@ -41,6 +48,38 @@ interface ExpiringDocument {
   daysUntilExpiry: number;
 }
 
+interface DetailDocument {
+  id: string;
+  personName: string;
+  personId: string;
+  type: string;
+  number: string;
+  expiryDate?: string;
+  issueDate?: string;
+}
+
+interface DetailAddress {
+  id: string;
+  personName: string;
+  personId: string;
+  type: string;
+  country: string;
+  city?: string;
+  street?: string;
+  isPrimary: boolean;
+}
+
+interface DetailBankAccount {
+  id: string;
+  personName: string;
+  personId: string;
+  bankName: string;
+  accountNumber: string;
+  isPrimary: boolean;
+}
+
+type StatDetailType = 'documents' | 'addresses' | 'bankAccounts' | 'expiring' | null;
+
 export default function Members() {
   const navigate = useNavigate();
   const { data: persons, isLoading, error, refetch } = usePersons();
@@ -54,6 +93,12 @@ export default function Members() {
   const [expiringDocs, setExpiringDocs] = useState<ExpiringDocument[]>([]);
   const [statsLoading, setStatsLoading] = useState(true);
 
+  // Detail data for stat card dialogs
+  const [allDocuments, setAllDocuments] = useState<DetailDocument[]>([]);
+  const [allAddresses, setAllAddresses] = useState<DetailAddress[]>([]);
+  const [allBankAccounts, setAllBankAccounts] = useState<DetailBankAccount[]>([]);
+  const [statDetailOpen, setStatDetailOpen] = useState<StatDetailType>(null);
+
   const fetchStats = async () => {
     setStatsLoading(true);
     try {
@@ -64,6 +109,9 @@ export default function Members() {
       let addressCount = 0;
       let bankAccountCount = 0;
       const expiring: ExpiringDocument[] = [];
+      const documents: DetailDocument[] = [];
+      const addresses: DetailAddress[] = [];
+      const bankAccounts: DetailBankAccount[] = [];
 
       for (const person of personsList) {
         try {
@@ -73,6 +121,16 @@ export default function Members() {
 
           const now = new Date();
           for (const doc of docs) {
+            documents.push({
+              id: doc.id,
+              personName: person.name,
+              personId: person.id,
+              type: doc.type,
+              number: doc.number ? `****${doc.number.slice(-4)}` : '****',
+              expiryDate: doc.expiry_date,
+              issueDate: doc.issue_date,
+            });
+
             if (doc.expiry_date) {
               const expiryDate = new Date(doc.expiry_date);
               const daysUntilExpiry = Math.ceil((expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
@@ -90,10 +148,34 @@ export default function Members() {
           }
 
           const addressesResponse = await apiClient.get(`/api/v1/persons/${person.id}/addresses`);
-          addressCount += (addressesResponse.data?.data || []).length;
+          const addrList = addressesResponse.data?.data || [];
+          addressCount += addrList.length;
+          for (const addr of addrList) {
+            addresses.push({
+              id: addr.id,
+              personName: person.name,
+              personId: person.id,
+              type: addr.type,
+              country: addr.country || '',
+              city: addr.city,
+              street: addr.street,
+              isPrimary: addr.is_primary,
+            });
+          }
 
           const bankResponse = await apiClient.get(`/api/v1/persons/${person.id}/bank-accounts`);
-          bankAccountCount += (bankResponse.data?.data || []).length;
+          const bankList = bankResponse.data?.data || [];
+          bankAccountCount += bankList.length;
+          for (const bank of bankList) {
+            bankAccounts.push({
+              id: bank.id,
+              personName: person.name,
+              personId: person.id,
+              bankName: bank.bank_name,
+              accountNumber: bank.account_number ? `****${bank.account_number.slice(-4)}` : '****',
+              isPrimary: bank.is_primary,
+            });
+          }
         } catch {
           // Continue with other persons if one fails
         }
@@ -106,6 +188,9 @@ export default function Members() {
         bankAccountCount,
       });
       setExpiringDocs(expiring.sort((a, b) => a.daysUntilExpiry - b.daysUntilExpiry));
+      setAllDocuments(documents);
+      setAllAddresses(addresses);
+      setAllBankAccounts(bankAccounts);
     } catch {
       // Stats loading failed silently
     } finally {
@@ -123,10 +208,10 @@ export default function Members() {
   };
 
   const statCards = [
-    { title: '家庭成员', value: stats?.memberCount ?? '-', icon: Users, color: 'text-blue-500' },
-    { title: '证件数量', value: stats?.documentCount ?? '-', icon: FileText, color: 'text-green-500' },
-    { title: '地址记录', value: stats?.addressCount ?? '-', icon: MapPin, color: 'text-orange-500' },
-    { title: '银行账户', value: stats?.bankAccountCount ?? '-', icon: Building2, color: 'text-purple-500' },
+    { title: '家庭成员', value: stats?.memberCount ?? '-', icon: Users, color: 'text-blue-500', onClick: undefined as (() => void) | undefined },
+    { title: '证件数量', value: stats?.documentCount ?? '-', icon: FileText, color: 'text-green-500', onClick: () => setStatDetailOpen('documents') },
+    { title: '地址记录', value: stats?.addressCount ?? '-', icon: MapPin, color: 'text-orange-500', onClick: () => setStatDetailOpen('addresses') },
+    { title: '银行账户', value: stats?.bankAccountCount ?? '-', icon: Building2, color: 'text-purple-500', onClick: () => setStatDetailOpen('bankAccounts') },
   ];
 
   const documentTypeLabels: Record<string, string> = {
@@ -200,7 +285,14 @@ export default function Members() {
       {/* Stats Grid */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {statCards.map((stat) => (
-          <Card key={stat.title} className="hover:bg-muted/50 transition-colors">
+          <Card
+            key={stat.title}
+            className={cn(
+              'hover:bg-muted/50 transition-colors',
+              stat.onClick && 'cursor-pointer hover:shadow-md'
+            )}
+            onClick={stat.onClick}
+          >
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
                 {stat.title}
@@ -222,10 +314,16 @@ export default function Members() {
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Expiring Documents */}
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
+          <CardHeader
+            className="flex flex-row items-center justify-between cursor-pointer hover:bg-muted/50 transition-colors rounded-t-lg"
+            onClick={() => expiringDocs.length > 0 && setStatDetailOpen('expiring')}
+          >
             <CardTitle className="flex items-center gap-2">
               <AlertTriangle className="h-5 w-5 text-orange-500" />
               即将过期的证件
+              {expiringDocs.length > 0 && (
+                <Badge variant="outline" className="text-orange-500 border-orange-500">{expiringDocs.length}</Badge>
+              )}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -456,6 +554,161 @@ export default function Members() {
           }}
         />
       )}
+
+      {/* Stat Detail Dialog */}
+      <Dialog open={statDetailOpen !== null} onOpenChange={(open) => !open && setStatDetailOpen(null)}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          {statDetailOpen === 'documents' && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <FileText className="h-5 w-5 text-green-500" />
+                  全部证件 ({allDocuments.length})
+                </DialogTitle>
+                <DialogDescription>所有家庭成员的证件信息</DialogDescription>
+              </DialogHeader>
+              {allDocuments.length === 0 ? (
+                <p className="text-muted-foreground text-center py-6">暂无证件记录</p>
+              ) : (
+                <div className="space-y-2">
+                  {allDocuments.map((doc) => (
+                    <div
+                      key={doc.id}
+                      className="flex items-center justify-between p-3 rounded-lg bg-muted/50 cursor-pointer hover:bg-muted transition-colors"
+                      onClick={() => { setStatDetailOpen(null); navigate(`/members/${doc.personId}`); }}
+                    >
+                      <div>
+                        <p className="font-medium">
+                          {doc.personName} - {documentTypeLabels[doc.type] || doc.type}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {doc.number}
+                          {doc.expiryDate && ` · 过期: ${doc.expiryDate}`}
+                        </p>
+                      </div>
+                      {doc.expiryDate && (() => {
+                        const days = Math.ceil((new Date(doc.expiryDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+                        if (days <= 0) return <Badge variant="destructive">已过期</Badge>;
+                        if (days <= 90) return <Badge variant="outline" className="text-orange-500 border-orange-500">{days}天后过期</Badge>;
+                        return null;
+                      })()}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+
+          {statDetailOpen === 'addresses' && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <MapPin className="h-5 w-5 text-orange-500" />
+                  全部地址 ({allAddresses.length})
+                </DialogTitle>
+                <DialogDescription>所有家庭成员的地址记录</DialogDescription>
+              </DialogHeader>
+              {allAddresses.length === 0 ? (
+                <p className="text-muted-foreground text-center py-6">暂无地址记录</p>
+              ) : (
+                <div className="space-y-2">
+                  {allAddresses.map((addr) => (
+                    <div
+                      key={addr.id}
+                      className="flex items-center justify-between p-3 rounded-lg bg-muted/50 cursor-pointer hover:bg-muted transition-colors"
+                      onClick={() => { setStatDetailOpen(null); navigate(`/members/${addr.personId}`); }}
+                    >
+                      <div>
+                        <p className="font-medium flex items-center gap-2">
+                          {addr.personName}
+                          {addr.isPrimary && <Badge variant="outline" className="text-xs">主要</Badge>}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {[addr.country, addr.city, addr.street].filter(Boolean).join(' · ') || '未填写详细地址'}
+                        </p>
+                      </div>
+                      <Badge variant="secondary">
+                        {{ residence: '居住', household: '户籍', work: '工作', mailing: '邮寄', other: '其他' }[addr.type] || addr.type}
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+
+          {statDetailOpen === 'bankAccounts' && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Building2 className="h-5 w-5 text-purple-500" />
+                  全部银行账户 ({allBankAccounts.length})
+                </DialogTitle>
+                <DialogDescription>所有家庭成员的银行账户</DialogDescription>
+              </DialogHeader>
+              {allBankAccounts.length === 0 ? (
+                <p className="text-muted-foreground text-center py-6">暂无银行账户</p>
+              ) : (
+                <div className="space-y-2">
+                  {allBankAccounts.map((bank) => (
+                    <div
+                      key={bank.id}
+                      className="flex items-center justify-between p-3 rounded-lg bg-muted/50 cursor-pointer hover:bg-muted transition-colors"
+                      onClick={() => { setStatDetailOpen(null); navigate(`/members/${bank.personId}`); }}
+                    >
+                      <div>
+                        <p className="font-medium flex items-center gap-2">
+                          {bank.personName} - {bank.bankName}
+                          {bank.isPrimary && <Badge variant="outline" className="text-xs">主要</Badge>}
+                        </p>
+                        <p className="text-sm text-muted-foreground">{bank.accountNumber}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+
+          {statDetailOpen === 'expiring' && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <AlertTriangle className="h-5 w-5 text-orange-500" />
+                  即将过期的证件 ({expiringDocs.length})
+                </DialogTitle>
+                <DialogDescription>90天内即将过期的所有证件</DialogDescription>
+              </DialogHeader>
+              {expiringDocs.length === 0 ? (
+                <p className="text-muted-foreground text-center py-6">暂无即将过期的证件</p>
+              ) : (
+                <div className="space-y-2">
+                  {expiringDocs.map((doc) => (
+                    <div
+                      key={doc.id}
+                      className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
+                    >
+                      <div>
+                        <p className="font-medium">
+                          {doc.personName} - {documentTypeLabels[doc.type] || doc.type}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {doc.number} · 过期日期: {doc.expiryDate}
+                        </p>
+                      </div>
+                      <span className={`text-sm font-medium ${
+                        doc.daysUntilExpiry <= 30 ? 'text-red-500' : 'text-orange-500'
+                      }`}>
+                        {doc.daysUntilExpiry} 天后过期
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
