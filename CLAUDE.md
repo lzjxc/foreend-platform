@@ -1,6 +1,6 @@
 # Personal Info Frontend - Claude Code 开发规范
 
-> 最后更新: 2026-03-25
+> 最后更新: 2026-03-26
 >
 > 本文档为 Claude Code 提供项目开发上下文，确保代码生成符合项目规范。
 
@@ -16,7 +16,7 @@
 |------|------|------|
 | 仪表盘 | `/dashboard` | 系统概览、货币统计 |
 | 系统看板 | `/system` | 服务健康、LLM 用量、Skill 管理 |
-| 消息网关 | `/msg-gateway` | 提醒任务(按源统计)、渠道管理、Provider管理、邮件概览(统计+趋势图)、邮件收件箱(分栏+回复) |
+| 消息网关 | `/msg-gateway` | 提醒任务(按源统计)、渠道管理、Provider管理、邮件概览(统计+趋势图)、邮件收件箱(分栏+回复)、邮件撰写/草稿管理 |
 | 远程设备 | `/machines` | WoL、关机、MacBook 摄像头 |
 | 文档中心 | `/docs` | 文档查阅(按服务分层)、变更时间线、K8s 配置 |
 | 效能评估 | `/efficiency` | 合规审计、服务评估建议 |
@@ -77,7 +77,7 @@ personal-info-frontend/
 │   │   ├── knowledge.ts         # 知识库 API (atoms, capture, review, plans, ontology)
 │   │   ├── game-design.ts       # 游戏技能设计 API (atoms, rules, originals, instances, modifiers)
 │   │   ├── game-workshop.ts     # 游戏框架设计 API (projects, entries, notes, AI configs)
-│   │   ├── emails.ts            # 邮件管理 API (list, detail, stats, settings, draft, send)
+│   │   ├── emails.ts            # 邮件管理 API (list, detail, stats, settings, compose, drafts CRUD, send)
 │   │   ├── file-gateway.ts      # 文件上传 API
 │   │   └── types.ts             # API 通用类型
 │   │
@@ -87,7 +87,7 @@ personal-info-frontend/
 │   │   ├── use-game-workshop.ts # 框架设计 hooks (projects, entries, notes)
 │   │   ├── use-plans.ts         # 学习计划 hooks
 │   │   ├── use-review.ts        # 复习队列 hooks
-│   │   ├── use-emails.ts        # 邮件管理 hooks (list, detail, stats, settings, draft, send)
+│   │   ├── use-emails.ts        # 邮件管理 hooks (list, detail, stats, settings, compose, drafts CRUD, send)
 │   │   ├── use-housing.ts       # 房产管理 hooks (properties, tenancies, utilities, bills, docs, emails)
 │   │   ├── use-doc-service.ts   # 文档服务 hooks
 │   │   ├── use-finance.ts       # 财务数据 hooks
@@ -136,11 +136,12 @@ personal-info-frontend/
 │   │   ├── financial/           # 财务组件
 │   │   │   ├── currency-stats.tsx     # 货币统计 (收支/趋势图)
 │   │   │   └── financial-trends.tsx   # 金融数据趋势 (汇率/金价)
-│   │   ├── email/               # 邮件管理组件 (6 个)
+│   │   ├── email/               # 邮件管理组件 (7 个)
 │   │   │   ├── email-stats.tsx          # 统计概览 (卡片+趋势图+排行)
-│   │   │   ├── email-inbox.tsx          # 分栏收件箱容器
-│   │   │   ├── email-list.tsx           # 左侧邮件列表 (筛选+搜索+分页)
+│   │   │   ├── email-inbox.tsx          # 分栏收件箱容器 (view/compose/edit-draft 模式切换)
+│   │   │   ├── email-list.tsx           # 左侧邮件列表 (筛选+搜索+分页+撰写按钮+草稿筛选)
 │   │   │   ├── email-detail.tsx         # 右侧邮件详情 (HTML渲染+回复)
+│   │   │   ├── email-compose.tsx        # 邮件撰写/草稿编辑 (紧凑表单编辑器)
 │   │   │   └── email-settings-dialog.tsx # 设置弹窗 (白名单+LLM+静默)
 │   │   ├── housing/             # 房产管理组件 (10 个)
 │   │   │   ├── property-card.tsx        # 房产卡片 (列表页)
@@ -214,7 +215,7 @@ personal-info-frontend/
 │       ├── knowledge.ts         # 知识库类型 (Atom, ReviewAtom, LearningPlan 等)
 │       ├── game-design.ts       # 技能设计类型 (SkillAtom, Rule, OriginalSkill, SkillInstance, Modifier)
 │       ├── game-workshop.ts     # 框架设计类型 (Project, Phase, AISection, DesignEntry)
-│       ├── email.ts             # 邮件类型 (EmailListItem, EmailDetail, EmailStats, EmailSettings)
+│       ├── email.ts             # 邮件类型 (EmailListItem, EmailDetail, EmailStats, EmailSettings, ComposeEmailInput, DraftUpdateInput)
 │       ├── housing.ts           # 房产类型 (Property, Tenancy, Utility, Bill, HousingDocument, EmailLink)
 │       ├── doc-service.ts       # 文档服务类型 (Document, Timeline, ArgoApp)
 │       ├── homework.ts          # 作业类型
@@ -305,6 +306,12 @@ export const msgGwClient = createApiClient('/notification-api');    // 消息网
 | | `/api/v1/emails/{id}/draft` | POST | LLM 生成回复草稿 |
 | | `/api/v1/emails/{id}/send` | POST | 确认发送回复 |
 | | `/api/v1/emails/backfill` | POST | 回填 IMAP 历史邮件 |
+| | `/api/v1/emails/compose` | POST | 撰写邮件 (send=false存草稿, send=true直接发送) |
+| | `/api/v1/emails/drafts` | GET | 草稿列表 (分页) |
+| | `/api/v1/emails/drafts/{id}` | GET | 草稿详情 |
+| | `/api/v1/emails/drafts/{id}` | PUT | 编辑草稿 (to, subject, body) |
+| | `/api/v1/emails/drafts/{id}` | DELETE | 删除草稿 |
+| | `/api/v1/emails/drafts/{id}/send` | POST | 发送草稿 |
 | **房产管理** (via `/life-api`) | `/api/v1/housing/properties` | GET/POST | 房产列表/创建 |
 | | `/api/v1/housing/properties/{id}` | GET/PATCH/DELETE | 房产详情/更新/删除 |
 | | `/api/v1/housing/tenancies` | GET/POST | 租约列表/创建 |
@@ -1029,6 +1036,7 @@ npm run electron:build
 
 | 日期 | 变更 | 作者 |
 |------|------|------|
+| 2026-03-26 | 邮件模块增强：撰写新邮件、草稿管理(CRUD+发送)、收件箱面板模式切换 | Claude |
 | 2026-03-25 | 新增房产管理模块(Property→Tenancy两层结构、水电账单、文档上传、邮件自动分类、从邮件初始化) | Claude |
 | 2026-03-25 | 新增邮件管理模块(概览统计+分栏收件箱+回复工作流+白名单设置+历史回填) | Claude |
 | 2026-03-13 | 消息网关增强：按源统计通知次数、可展开日志列表、计数标签优化 | Claude |
