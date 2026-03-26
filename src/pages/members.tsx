@@ -25,18 +25,20 @@ import {
   AlertTriangle,
   RefreshCw,
   Upload,
+  Wallet,
 } from 'lucide-react';
 import { usePersons, useDeletePerson } from '@/hooks/use-persons';
 import { RELATIONSHIP_OPTIONS, GENDER_OPTIONS } from '@/types';
 import { cn } from '@/lib/utils';
 import MemberForm from '@/components/members/member-form';
-import { apiClient } from '@/api/client';
+import { apiClient, financeClient } from '@/api/client';
 
 interface DashboardStats {
   memberCount: number;
   documentCount: number;
   addressCount: number;
   bankAccountCount: number;
+  financeAccountCount: number;
 }
 
 interface ExpiringDocument {
@@ -78,7 +80,16 @@ interface DetailBankAccount {
   isPrimary: boolean;
 }
 
-type StatDetailType = 'documents' | 'addresses' | 'bankAccounts' | 'expiring' | null;
+interface DetailFinanceAccount {
+  id: number;
+  platform: string;
+  name: string;
+  currency: string;
+  isActive: boolean;
+  balance?: number | null;
+}
+
+type StatDetailType = 'documents' | 'addresses' | 'bankAccounts' | 'financeAccounts' | 'expiring' | null;
 
 export default function Members() {
   const navigate = useNavigate();
@@ -97,6 +108,7 @@ export default function Members() {
   const [allDocuments, setAllDocuments] = useState<DetailDocument[]>([]);
   const [allAddresses, setAllAddresses] = useState<DetailAddress[]>([]);
   const [allBankAccounts, setAllBankAccounts] = useState<DetailBankAccount[]>([]);
+  const [allFinanceAccounts, setAllFinanceAccounts] = useState<DetailFinanceAccount[]>([]);
   const [statDetailOpen, setStatDetailOpen] = useState<StatDetailType>(null);
 
   const fetchStats = async () => {
@@ -121,12 +133,14 @@ export default function Members() {
 
           const now = new Date();
           for (const doc of docs) {
+            const docType = doc.doc_type || doc.type || '';
+            const docNumber = doc.doc_number || doc.number || '';
             documents.push({
               id: doc.id,
               personName: person.name,
               personId: person.id,
-              type: doc.type,
-              number: doc.number ? `****${doc.number.slice(-4)}` : '****',
+              type: docType,
+              number: docNumber ? `****${docNumber.slice(-4)}` : '****',
               expiryDate: doc.expiry_date,
               issueDate: doc.issue_date,
             });
@@ -138,8 +152,8 @@ export default function Members() {
                 expiring.push({
                   id: doc.id,
                   personName: person.name,
-                  type: doc.type,
-                  number: doc.number ? `****${doc.number.slice(-4)}` : '****',
+                  type: docType,
+                  number: docNumber ? `****${docNumber.slice(-4)}` : '****',
                   expiryDate: doc.expiry_date,
                   daysUntilExpiry,
                 });
@@ -181,16 +195,37 @@ export default function Members() {
         }
       }
 
+      // Fetch finance accounts
+      let financeAccounts: DetailFinanceAccount[] = [];
+      try {
+        const financeResponse = await financeClient.get('/api/v1/accounts');
+        const accts = financeResponse.data?.data || financeResponse.data || [];
+        if (Array.isArray(accts)) {
+          financeAccounts = accts.map((a: Record<string, unknown>) => ({
+            id: a.id as number,
+            platform: (a.platform as string) || '',
+            name: (a.name as string) || '',
+            currency: (a.currency as string) || '',
+            isActive: a.is_active as boolean,
+            balance: a.balance as number | null,
+          }));
+        }
+      } catch {
+        // Finance service may be unavailable
+      }
+
       setStats({
         memberCount: personsList.length,
         documentCount,
         addressCount,
         bankAccountCount,
+        financeAccountCount: financeAccounts.length,
       });
       setExpiringDocs(expiring.sort((a, b) => a.daysUntilExpiry - b.daysUntilExpiry));
       setAllDocuments(documents);
       setAllAddresses(addresses);
       setAllBankAccounts(bankAccounts);
+      setAllFinanceAccounts(financeAccounts);
     } catch {
       // Stats loading failed silently
     } finally {
@@ -212,6 +247,7 @@ export default function Members() {
     { title: '证件数量', value: stats?.documentCount ?? '-', icon: FileText, color: 'text-green-500', onClick: () => setStatDetailOpen('documents') },
     { title: '地址记录', value: stats?.addressCount ?? '-', icon: MapPin, color: 'text-orange-500', onClick: () => setStatDetailOpen('addresses') },
     { title: '银行账户', value: stats?.bankAccountCount ?? '-', icon: Building2, color: 'text-purple-500', onClick: () => setStatDetailOpen('bankAccounts') },
+    { title: '财务账户', value: stats?.financeAccountCount ?? '-', icon: Wallet, color: 'text-teal-500', onClick: () => setStatDetailOpen('financeAccounts') },
   ];
 
   const documentTypeLabels: Record<string, string> = {
@@ -283,7 +319,7 @@ export default function Members() {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-5">
         {statCards.map((stat) => (
           <Card
             key={stat.title}
@@ -665,6 +701,55 @@ export default function Members() {
                       </div>
                     </div>
                   ))}
+                </div>
+              )}
+            </>
+          )}
+
+          {statDetailOpen === 'financeAccounts' && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Wallet className="h-5 w-5 text-teal-500" />
+                  财务账户 ({allFinanceAccounts.length})
+                </DialogTitle>
+                <DialogDescription>已关联的财务平台账户</DialogDescription>
+              </DialogHeader>
+              {allFinanceAccounts.length === 0 ? (
+                <p className="text-muted-foreground text-center py-6">暂无财务账户</p>
+              ) : (
+                <div className="space-y-2">
+                  {allFinanceAccounts.map((acct) => {
+                    const platformLabels: Record<string, string> = {
+                      starling: 'Starling Bank',
+                      monzo: 'Monzo',
+                      alipay: '支付宝',
+                      wechat_pay: '微信支付',
+                      cmb: '招商银行',
+                      manual: '手动录入',
+                    };
+                    return (
+                      <div
+                        key={acct.id}
+                        className="flex items-center justify-between p-3 rounded-lg bg-muted/50 cursor-pointer hover:bg-muted transition-colors"
+                        onClick={() => { setStatDetailOpen(null); navigate('/finance'); }}
+                      >
+                        <div>
+                          <p className="font-medium flex items-center gap-2">
+                            {platformLabels[acct.platform] || acct.platform}
+                            {acct.name && <span className="text-muted-foreground font-normal">({acct.name})</span>}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            {acct.currency}
+                            {acct.balance != null && ` · 余额: ${acct.balance.toLocaleString()}`}
+                          </p>
+                        </div>
+                        <Badge variant={acct.isActive ? 'default' : 'secondary'}>
+                          {acct.isActive ? '活跃' : '停用'}
+                        </Badge>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </>
