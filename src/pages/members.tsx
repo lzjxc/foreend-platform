@@ -257,6 +257,9 @@ export default function Members() {
     birth_certificate: '出生证明',
     household_register: '户口本',
     marriage_cert: '结婚证',
+    evisa_share_code: 'eVisa Share Code',
+    brp: 'BRP 居留卡',
+    visa: '签证',
     other: '其他',
   };
 
