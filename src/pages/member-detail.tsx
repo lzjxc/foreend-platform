@@ -11,6 +11,7 @@ import {
   MapPin,
   CreditCard,
   Phone,
+  KeyRound,
   Edit,
   User,
 } from 'lucide-react';
@@ -19,6 +20,7 @@ import { usePersonDocuments } from '@/hooks/use-documents';
 import { usePersonAddresses } from '@/hooks/use-addresses';
 import { usePersonBankAccounts } from '@/hooks/use-bank-accounts';
 import { usePersonContacts } from '@/hooks/use-contacts';
+import { usePersonCredentials } from '@/hooks/use-credentials';
 import { RELATIONSHIP_OPTIONS, GENDER_OPTIONS } from '@/types';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
@@ -27,6 +29,7 @@ import ContactsTab from '@/components/contacts/contacts-tab';
 import DocumentsTab from '@/components/documents/documents-tab';
 import AddressesTab from '@/components/addresses/addresses-tab';
 import BankAccountsTab from '@/components/bank-accounts/bank-accounts-tab';
+import CredentialsTab from '@/components/credentials/credentials-tab';
 
 export default function MemberDetail() {
   const { id } = useParams<{ id: string }>();
@@ -38,6 +41,7 @@ export default function MemberDetail() {
   const { data: addresses } = usePersonAddresses(id || '');
   const { data: bankAccounts } = usePersonBankAccounts(id || '');
   const { data: contacts } = usePersonContacts(id || '');
+  const { data: credentials } = usePersonCredentials(id || '');
 
   const getRelationshipLabel = (value: string) => {
     return RELATIONSHIP_OPTIONS.find((opt) => opt.value === value)?.label || value;
@@ -207,11 +211,20 @@ export default function MemberDetail() {
               </Badge>
             )}
           </TabsTrigger>
+          <TabsTrigger value="credentials" className="gap-2">
+            <KeyRound className="h-4 w-4" />
+            网站账号
+            {credentials && credentials.length > 0 && (
+              <Badge variant="secondary" className="ml-1 h-5 px-1.5">
+                {credentials.length}
+              </Badge>
+            )}
+          </TabsTrigger>
         </TabsList>
 
         {/* Overview Tab */}
         <TabsContent value="overview">
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
             <Card className="hover:shadow-md transition-shadow">
               <CardContent className="flex items-center gap-4 p-4">
                 <FileText className="h-8 w-8 text-blue-500" />
@@ -251,6 +264,16 @@ export default function MemberDetail() {
                 </div>
               </CardContent>
             </Card>
+
+            <Card className="hover:shadow-md transition-shadow">
+              <CardContent className="flex items-center gap-4 p-4">
+                <KeyRound className="h-8 w-8 text-orange-500" />
+                <div>
+                  <p className="text-2xl font-bold">{credentials?.length || 0}</p>
+                  <p className="text-sm text-muted-foreground">网站账号</p>
+                </div>
+              </CardContent>
+            </Card>
           </div>
         </TabsContent>
 
@@ -272,6 +295,11 @@ export default function MemberDetail() {
         {/* Contacts Tab */}
         <TabsContent value="contacts">
           <ContactsTab personId={id || ''} />
+        </TabsContent>
+
+        {/* Credentials Tab */}
+        <TabsContent value="credentials">
+          <CredentialsTab personId={id || ''} />
         </TabsContent>
       </Tabs>
 

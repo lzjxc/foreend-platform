@@ -26,6 +26,7 @@ import {
   RefreshCw,
   Upload,
   Wallet,
+  KeyRound,
 } from 'lucide-react';
 import { usePersons, useDeletePerson } from '@/hooks/use-persons';
 import { RELATIONSHIP_OPTIONS, GENDER_OPTIONS } from '@/types';
@@ -39,6 +40,7 @@ interface DashboardStats {
   addressCount: number;
   bankAccountCount: number;
   financeAccountCount: number;
+  credentialCount: number;
 }
 
 interface ExpiringDocument {
@@ -89,7 +91,17 @@ interface DetailFinanceAccount {
   balance?: number | null;
 }
 
-type StatDetailType = 'documents' | 'addresses' | 'bankAccounts' | 'financeAccounts' | 'expiring' | null;
+interface DetailCredential {
+  id: string;
+  personName: string;
+  personId: string;
+  siteName: string;
+  credentialKey: string;
+  category: string;
+  username: string;
+}
+
+type StatDetailType = 'documents' | 'addresses' | 'bankAccounts' | 'financeAccounts' | 'credentials' | 'expiring' | null;
 
 export default function Members() {
   const navigate = useNavigate();
@@ -109,6 +121,7 @@ export default function Members() {
   const [allAddresses, setAllAddresses] = useState<DetailAddress[]>([]);
   const [allBankAccounts, setAllBankAccounts] = useState<DetailBankAccount[]>([]);
   const [allFinanceAccounts, setAllFinanceAccounts] = useState<DetailFinanceAccount[]>([]);
+  const [allCredentials, setAllCredentials] = useState<DetailCredential[]>([]);
   const [statDetailOpen, setStatDetailOpen] = useState<StatDetailType>(null);
 
   const fetchStats = async () => {
@@ -120,10 +133,12 @@ export default function Members() {
       let documentCount = 0;
       let addressCount = 0;
       let bankAccountCount = 0;
+      let credentialCount = 0;
       const expiring: ExpiringDocument[] = [];
       const documents: DetailDocument[] = [];
       const addresses: DetailAddress[] = [];
       const bankAccounts: DetailBankAccount[] = [];
+      const credentials: DetailCredential[] = [];
 
       for (const person of personsList) {
         try {
@@ -190,6 +205,21 @@ export default function Members() {
               isPrimary: bank.is_primary,
             });
           }
+
+          const credResponse = await apiClient.get(`/api/v1/persons/${person.id}/credentials`);
+          const credList = credResponse.data?.data || [];
+          credentialCount += credList.length;
+          for (const cred of credList) {
+            credentials.push({
+              id: cred.id,
+              personName: person.name,
+              personId: person.id,
+              siteName: cred.site_name,
+              credentialKey: cred.credential_key,
+              category: cred.category || '',
+              username: cred.username ? cred.username.slice(0, 2) + '****' : '****',
+            });
+          }
         } catch {
           // Continue with other persons if one fails
         }
@@ -220,12 +250,14 @@ export default function Members() {
         addressCount,
         bankAccountCount,
         financeAccountCount: financeAccounts.length,
+        credentialCount,
       });
       setExpiringDocs(expiring.sort((a, b) => a.daysUntilExpiry - b.daysUntilExpiry));
       setAllDocuments(documents);
       setAllAddresses(addresses);
       setAllBankAccounts(bankAccounts);
       setAllFinanceAccounts(financeAccounts);
+      setAllCredentials(credentials);
     } catch {
       // Stats loading failed silently
     } finally {
@@ -248,6 +280,7 @@ export default function Members() {
     { title: '地址记录', value: stats?.addressCount ?? '-', icon: MapPin, color: 'text-orange-500', onClick: () => setStatDetailOpen('addresses') },
     { title: '银行账户', value: stats?.bankAccountCount ?? '-', icon: Building2, color: 'text-purple-500', onClick: () => setStatDetailOpen('bankAccounts') },
     { title: '财务账户', value: stats?.financeAccountCount ?? '-', icon: Wallet, color: 'text-teal-500', onClick: () => setStatDetailOpen('financeAccounts') },
+    { title: '网站账号', value: stats?.credentialCount ?? '-', icon: KeyRound, color: 'text-amber-500', onClick: () => setStatDetailOpen('credentials') },
   ];
 
   const documentTypeLabels: Record<string, string> = {
@@ -322,7 +355,7 @@ export default function Members() {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-5">
+      <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-6">
         {statCards.map((stat) => (
           <Card
             key={stat.title}
@@ -752,6 +785,54 @@ export default function Members() {
                         <Badge variant={acct.isActive ? 'default' : 'secondary'}>
                           {acct.isActive ? '活跃' : '停用'}
                         </Badge>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </>
+          )}
+
+          {statDetailOpen === 'credentials' && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <KeyRound className="h-5 w-5 text-amber-500" />
+                  网站账号 ({allCredentials.length})
+                </DialogTitle>
+                <DialogDescription>所有成员的网站账号</DialogDescription>
+              </DialogHeader>
+              {allCredentials.length === 0 ? (
+                <p className="text-muted-foreground text-center py-6">暂无网站账号</p>
+              ) : (
+                <div className="space-y-2">
+                  {allCredentials.map((cred) => {
+                    const categoryLabels: Record<string, string> = {
+                      housing: '住房', finance: '金融', government: '政府',
+                      education: '教育', healthcare: '医疗', shopping: '购物',
+                      social: '社交', work: '工作', utility: '水电煤',
+                      insurance: '保险', travel: '旅行', other: '其他',
+                    };
+                    return (
+                      <div
+                        key={cred.id}
+                        className="flex items-center justify-between p-3 rounded-lg bg-muted/50 cursor-pointer hover:bg-muted transition-colors"
+                        onClick={() => { setStatDetailOpen(null); navigate(`/members/${cred.personId}`); }}
+                      >
+                        <div>
+                          <p className="font-medium flex items-center gap-2">
+                            {cred.siteName}
+                            <span className="text-muted-foreground font-normal text-sm">({cred.personName})</span>
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            用户名: {cred.username}
+                          </p>
+                        </div>
+                        {cred.category && (
+                          <Badge variant="outline">
+                            {categoryLabels[cred.category] || cred.category}
+                          </Badge>
+                        )}
                       </div>
                     );
                   })}

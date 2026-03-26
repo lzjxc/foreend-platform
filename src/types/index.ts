@@ -6,6 +6,7 @@ export * from './address';
 export * from './contact';
 export * from './bank-account';
 export * from './medical';
+export * from './credential';
 
 // Common utility types
 export interface BaseEntity {
