@@ -98,6 +98,7 @@ personal-info-frontend/
 │   │   ├── use-starling.ts      # Starling Bank hooks (balance, transactions, feed)
 │   │   ├── use-persons.ts       # 家庭成员 CRUD
 │   │   ├── use-documents.ts     # 证件管理
+│   │   ├── use-credentials.ts   # 网站账号密码 CRUD (per person)
 │   │   └── ...                  # 其余 hooks
 │   │
 │   ├── stores/                  # Zustand 状态 (7 个)
@@ -165,7 +166,8 @@ personal-info-frontend/
 │   │   ├── wordbook/            # 单词本组件 (6 个)
 │   │   ├── documents/           # 证件管理
 │   │   ├── addresses/           # 地址管理
-│   │   └── bank-accounts/       # 银行账户
+│   │   ├── bank-accounts/       # 银行账户
+│   │   └── credentials/         # 网站账号密码 (CRUD + 密码脱敏 + 复制)
 │   │
 │   ├── pages/                   # 页面组件 (44 个)
 │   │   ├── dashboard.tsx        # 仪表盘
@@ -223,6 +225,7 @@ personal-info-frontend/
 │       ├── finance.ts           # 财务类型
 │       ├── person.ts            # 成员类型
 │       ├── document.ts          # 证件类型
+│       ├── credential.ts        # 网站账号密码类型 (WebCredential, category options)
 │       └── ...                  # 其余类型定义
 ```
 
@@ -267,6 +270,9 @@ export const starlingClient = createApiClient('/starling-api');     // Starling 
 | **地址** | `/api/v1/persons/{id}/addresses` | GET/POST | 地址管理 |
 | **联系方式** | `/api/v1/persons/{id}/contacts` | GET/POST | 联系方式 |
 | **银行账户** | `/api/v1/persons/{id}/bank-accounts` | GET/POST | 银行账户 |
+| **网站账号** | `/api/v1/persons/{id}/credentials` | GET/POST | 网站账号密码 CRUD |
+| | `/api/v1/persons/{id}/credentials/{cred_id}` | PUT/DELETE | 更新/删除账号 |
+| | `/api/v1/credentials/search` | GET | 搜索账号 (q, person_name) |
 | **医疗信息** | `/api/v1/persons/{id}/medical` | GET/POST | 医疗记录 |
 | **表单模板** | `/api/v1/templates` | GET | 模板列表 |
 | | `/api/v1/templates/{id}/fill` | POST | 填充表单 |
@@ -1038,6 +1044,7 @@ npm run electron:build
 
 | 日期 | 变更 | 作者 |
 |------|------|------|
+| 2026-03-26 | 新增网站账号密码管理模块(credentials CRUD, 密码脱敏, 复制, 分类筛选, stat card) | Claude |
 | 2026-03-26 | 新增 GitHub Actions CI/CD (docker-publish.yml) | Claude |
 | 2026-03-26 | 邮件撰写增强：附件上传(拖拽+点击, react-dropzone, 10MB限制, multipart提交) | Claude |
 | 2026-03-26 | 新增 Starling Bank 卡片(余额+近期交易)、starlingClient、use-starling hook、nginx /starling-api/ 代理 | Claude |
