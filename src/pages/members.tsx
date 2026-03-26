@@ -737,7 +737,9 @@ export default function Members() {
                         <div>
                           <p className="font-medium flex items-center gap-2">
                             {platformLabels[acct.platform] || acct.platform}
-                            {acct.name && <span className="text-muted-foreground font-normal">({acct.name})</span>}
+                            {acct.name && !/^[?]+$/.test(acct.name) && (
+                              <span className="text-muted-foreground font-normal">({acct.name})</span>
+                            )}
                           </p>
                           <p className="text-sm text-muted-foreground">
                             {acct.currency}
