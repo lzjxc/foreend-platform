@@ -55,22 +55,25 @@ export function Sidebar() {
     <motion.aside
       initial={false}
       animate={{ width: sidebarCollapsed ? 64 : 256 }}
-      className="fixed left-0 top-0 z-40 flex h-screen flex-col border-r bg-card"
+      className="fixed left-0 top-0 z-40 flex h-screen flex-col border-r bg-slate-900 dark:bg-slate-950"
     >
       {/* Logo */}
-      <div className="flex h-16 items-center justify-between border-b px-4">
+      <div className="flex h-16 items-center justify-between border-b border-slate-700 px-4">
         {!sidebarCollapsed && (
           <div className="flex items-center gap-2">
-            <Brain className="h-6 w-6 text-primary" />
-            <span className="text-lg font-semibold">个人AI外脑</span>
+            <Brain className="h-6 w-6 text-blue-400" />
+            <span className="text-lg font-semibold text-white">个人AI外脑</span>
           </div>
         )}
-        {sidebarCollapsed && <Brain className="mx-auto h-6 w-6 text-primary" />}
+        {sidebarCollapsed && <Brain className="mx-auto h-6 w-6 text-blue-400" />}
         <Button
           variant="ghost"
           size="icon"
           onClick={toggleSidebar}
-          className={cn(sidebarCollapsed && 'absolute -right-3 top-5 h-6 w-6 rounded-full border bg-card')}
+          className={cn(
+            'text-slate-400 hover:text-white hover:bg-slate-700',
+            sidebarCollapsed && 'absolute -right-3 top-5 h-6 w-6 rounded-full border border-slate-600 bg-slate-800'
+          )}
         >
           <ChevronLeft
             className={cn(
@@ -91,8 +94,8 @@ export function Sidebar() {
               cn(
                 'flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors',
                 isActive
-                  ? 'bg-primary text-primary-foreground'
-                  : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
+                  ? 'bg-blue-600 text-white'
+                  : 'text-slate-400 hover:bg-slate-800 hover:text-white',
                 sidebarCollapsed && 'justify-center px-2'
               )
             }
@@ -105,8 +108,8 @@ export function Sidebar() {
 
       {/* Footer */}
       {!sidebarCollapsed && (
-        <div className="border-t p-4">
-          <p className="text-xs text-muted-foreground">
+        <div className="border-t border-slate-700 p-4">
+          <p className="text-xs text-slate-500">
             Personal Info Frontend v0.1.0
           </p>
         </div>
