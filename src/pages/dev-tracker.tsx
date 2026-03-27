@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { motion } from 'framer-motion';
 import {
   Target,
   Activity as ActivityIcon,
@@ -170,16 +169,31 @@ function activityTypeColor(t: string) {
   }
 }
 
+const categoryLabels: Record<string, string> = {
+  'k8s-dev': 'K8s 系统开发',
+  'game-dev': '游戏开发',
+  'life-exp': '生活经验',
+  'other': '其他计划',
+  'design': '设计',
+  'devops': 'DevOps',
+};
+
 function categoryColor(cat: string | null | undefined) {
   if (!cat) return 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300';
   const colors: Record<string, string> = {
-    infrastructure: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200',
-    frontend: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
-    backend: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
-    devops: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
-    data: 'bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200',
+    'k8s-dev': 'bg-blue-600 text-white',
+    'game-dev': 'bg-purple-600 text-white',
+    'life-exp': 'bg-orange-500 text-white',
+    'other': 'bg-gray-500 text-white',
+    'design': 'bg-cyan-600 text-white',
+    'devops': 'bg-emerald-600 text-white',
   };
-  return colors[cat] || 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300';
+  return colors[cat] || 'bg-gray-500 text-white';
+}
+
+function categoryLabel(cat: string | null | undefined) {
+  if (!cat) return '';
+  return categoryLabels[cat] || cat;
 }
 
 function formatBytes(bytes: number): string {
@@ -361,8 +375,8 @@ function DashboardTab() {
         </div>
       ) : (
         <div className="space-y-6">
-          {timeline?.map((day) => (
-            <TimelineDayCard key={day.date} day={day} />
+          {timeline?.map((day, i) => (
+            <TimelineDayCard key={day.date} day={day} index={i} />
           ))}
           {timeline?.length === 0 && (
             <p className="text-center text-muted-foreground py-8">No activity in the selected period</p>
@@ -373,82 +387,128 @@ function DashboardTab() {
   );
 }
 
-function TimelineDayCard({ day }: { day: TimelineDay }) {
+function isToday(dateStr: string) {
+  return dateStr === new Date().toISOString().split('T')[0];
+}
+
+const dayColors = [
+  'border-green-500',
+  'border-blue-500',
+  'border-purple-500',
+  'border-orange-500',
+  'border-pink-500',
+  'border-cyan-500',
+  'border-yellow-500',
+];
+
+const dayDotColors = [
+  'bg-green-500',
+  'bg-blue-500',
+  'bg-purple-500',
+  'bg-orange-500',
+  'bg-pink-500',
+  'bg-cyan-500',
+  'bg-yellow-500',
+];
+
+function TimelineDayCard({ day, index }: { day: TimelineDay; index: number }) {
+  const today = isToday(day.date);
+  const colorIdx = index % dayColors.length;
+  const borderColor = today ? 'border-green-500' : dayColors[colorIdx];
+  const dotColor = today ? 'bg-green-500' : dayDotColors[colorIdx];
+  const dateShort = day.date.slice(5); // "03-27" -> "3/27"
+  const [m, d] = dateShort.split('-');
+  const dateLabel = `${parseInt(m)}/${parseInt(d)}`;
+  const weekdayMap: Record<string, string> = { Mon: '周一', Tue: '周二', Wed: '周三', Thu: '周四', Fri: '周五', Sat: '周六', Sun: '周日' };
+  const weekdayLabel = weekdayMap[day.weekday] || day.weekday;
+  const unlinkedCount = day.unlinked.length;
+  const sessionCount = day.sessions.length;
+
   return (
-    <div>
-      <div className="flex items-center gap-2 mb-3">
-        <Calendar className="h-4 w-4 text-muted-foreground" />
-        <h3 className="font-semibold">{day.date}</h3>
-        <span className="text-sm text-muted-foreground">({day.weekday})</span>
-        <Badge variant="secondary" className="text-xs">
-          {day.sessions.length} session{day.sessions.length !== 1 ? 's' : ''}
-        </Badge>
+    <div className={cn('border-l-4 pl-4', borderColor)}>
+      {/* Day header */}
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <span className={cn('h-3 w-3 rounded-full', dotColor)} />
+          <span className="font-bold text-lg">{dateLabel}</span>
+          <span className="text-sm text-muted-foreground">{weekdayLabel}{today ? ' (Today)' : ''}</span>
+        </div>
+        <span className="text-xs text-muted-foreground">
+          {sessionCount} session{sessionCount !== 1 ? 's' : ''}
+          {unlinkedCount > 0 && ` + ${unlinkedCount} unlinked`}
+        </span>
       </div>
 
-      <div className="ml-2 border-l-2 border-muted pl-4 space-y-3">
+      {/* Sessions */}
+      <div className="space-y-1">
         {day.sessions.map((session) => (
-          <TimelineSessionCard key={session.id} session={session} />
+          <TimelineSessionRow key={session.id} session={session} />
         ))}
-        {day.unlinked.length > 0 && (
-          <div className="rounded-lg border border-dashed bg-muted/30 p-3">
-            <p className="text-xs font-medium text-muted-foreground mb-2">
-              {day.unlinked.length} unlinked activit{day.unlinked.length !== 1 ? 'ies' : 'y'}
-            </p>
-            {day.unlinked.map((a) => (
-              <div key={a.id} className="text-sm text-muted-foreground truncate">
-                {a.title}
-              </div>
-            ))}
+        {unlinkedCount > 0 && (
+          <div className="flex items-center gap-2 py-2 px-2 text-sm text-amber-600 dark:text-amber-400">
+            <span className="bg-amber-100 dark:bg-amber-900 rounded-full h-2 w-2" />
+            <span className="font-medium">未归组</span>
+            <span className="text-muted-foreground">{unlinkedCount} activities</span>
           </div>
         )}
       </div>
+
+      {sessionCount === 0 && unlinkedCount === 0 && (
+        <p className="text-sm text-muted-foreground py-2 italic">no activity</p>
+      )}
     </div>
   );
 }
 
-function TimelineSessionCard({ session }: { session: TimelineSession }) {
+function TimelineSessionRow({ session }: { session: TimelineSession }) {
   const commitCount = session.activities.filter(a => a.commit_sha).length;
+  const timeStr = formatTime(session.created_at);
 
   return (
-    <motion.div
-      initial={{ opacity: 0, x: -8 }}
-      animate={{ opacity: 1, x: 0 }}
-      className="rounded-lg border bg-card p-3 shadow-sm"
-    >
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex-1 min-w-0">
-          <p className="font-medium text-sm truncate">{session.title || 'Untitled session'}</p>
-          <p className="text-xs text-muted-foreground">{session.service_id}</p>
-        </div>
-        <div className="flex items-center gap-1.5 flex-shrink-0">
-          {session.category && (
-            <span className={cn('rounded-md px-1.5 py-0.5 text-xs font-medium', categoryColor(session.category))}>
-              {session.category}
-            </span>
-          )}
-          {session.trigger_source && (
-            <span className="rounded-md px-1.5 py-0.5 text-xs font-medium bg-gray-100 text-gray-700">
-              {session.trigger_source}
-            </span>
-          )}
-        </div>
-      </div>
-      <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
-        <span className="flex items-center gap-1">
-          <Clock className="h-3 w-3" />
-          {formatTime(session.created_at)}
-        </span>
-        {commitCount > 0 && (
-          <span className="flex items-center gap-1">
-            <GitCommit className="h-3 w-3" />
-            {commitCount} commit{commitCount !== 1 ? 's' : ''}
+    <div className="flex items-center gap-2 py-2.5 px-2 rounded-lg hover:bg-muted/50 transition-colors group cursor-pointer">
+      {/* Category badge - left side, fixed width */}
+      <div className="w-24 flex-shrink-0">
+        {session.category && (
+          <span className={cn('rounded px-2 py-0.5 text-xs font-medium whitespace-nowrap', categoryColor(session.category))}>
+            {categoryLabel(session.category)}
           </span>
         )}
-        {session.activities.length > 0 && (
-          <span>{session.activities.length} activit{session.activities.length !== 1 ? 'ies' : 'y'}</span>
+      </div>
+
+      {/* Source badges */}
+      <div className="flex items-center gap-1 w-32 flex-shrink-0">
+        {session.environment && (
+          <span className="rounded px-1.5 py-0.5 text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300">
+            {session.environment}
+          </span>
+        )}
+        {session.trigger_source && (
+          <span className="rounded px-1.5 py-0.5 text-xs font-medium bg-teal-100 text-teal-700 dark:bg-teal-900 dark:text-teal-300">
+            {session.trigger_source}
+          </span>
         )}
       </div>
-    </motion.div>
+
+      {/* Title - bold */}
+      <span className="font-semibold text-sm truncate flex-1 min-w-0">
+        {session.title || 'Untitled session'}
+      </span>
+
+      {/* Service ID */}
+      <span className="text-xs text-muted-foreground flex-shrink-0 w-36 truncate">
+        {session.service_id}
+      </span>
+
+      {/* Time range */}
+      <span className="text-xs text-muted-foreground flex-shrink-0 w-16 text-right">
+        {timeStr}
+      </span>
+
+      {/* Commits */}
+      <span className="text-xs text-muted-foreground flex-shrink-0 w-20 text-right">
+        {commitCount > 0 ? `${commitCount} commits` : ''}
+      </span>
+    </div>
   );
 }
 
