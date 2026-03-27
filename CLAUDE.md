@@ -1,6 +1,6 @@
 # Personal Info Frontend - Claude Code 开发规范
 
-> 最后更新: 2026-03-26
+> 最后更新: 2026-03-27
 >
 > 本文档为 Claude Code 提供项目开发上下文，确保代码生成符合项目规范。
 
@@ -30,6 +30,7 @@
 | 技能设计 | `/game-dev/skills/*` | 原子库、参考技能、修饰器、规则、工作台(三栏布局) |
 | 框架设计 | `/game-dev/framework` | AI 辅助游戏系统设计(概念→蓝图→数值→GDD) |
 | 房产管理 | `/life/housing` | Property→Tenancy 两层结构、水电账单、文档上传、邮件自动分类 |
+| 开发追踪 | `/dev-tracker` | Dashboard、里程碑、应用、Spec、任务、活动记录、会话、配置备份(8 tab 单页) |
 | 家庭成员 | `/members` | 证件/地址/银行账户/医疗记录、表单填充 |
 | 文件管理 | `/files` | MinIO 文件浏览器 |
 | 设置 | `/settings` | 系统设置 |
@@ -73,7 +74,7 @@ personal-info-frontend/
 │   ├── index.css                # Tailwind 入口
 │   │
 │   ├── api/                     # API 客户端层
-│   │   ├── client.ts            # Axios 实例 (20 个客户端: apiClient, docClient, gameDesignClient, starlingClient 等)
+│   │   ├── client.ts            # Axios 实例 (21 个客户端: apiClient, docClient, gameDesignClient, devTrackerClient, starlingClient 等)
 │   │   ├── knowledge.ts         # 知识库 API (atoms, capture, review, plans, ontology)
 │   │   ├── game-design.ts       # 游戏技能设计 API (atoms, rules, originals, instances, modifiers)
 │   │   ├── game-workshop.ts     # 游戏框架设计 API (projects, entries, notes, AI configs)
@@ -81,7 +82,7 @@ personal-info-frontend/
 │   │   ├── file-gateway.ts      # 文件上传 API
 │   │   └── types.ts             # API 通用类型
 │   │
-│   ├── hooks/                   # 自定义 Hooks (39 个)
+│   ├── hooks/                   # 自定义 Hooks (40 个)
 │   │   ├── use-knowledge.ts     # 知识库 CRUD (atoms, capture, search, ontology)
 │   │   ├── use-game-design.ts   # 技能设计 CRUD (34 hooks: atoms, rules, instances, modifiers)
 │   │   ├── use-game-workshop.ts # 框架设计 hooks (projects, entries, notes)
@@ -99,6 +100,7 @@ personal-info-frontend/
 │   │   ├── use-persons.ts       # 家庭成员 CRUD
 │   │   ├── use-documents.ts     # 证件管理
 │   │   ├── use-credentials.ts   # 网站账号密码 CRUD (per person)
+│   │   ├── use-dev-tracker.ts   # 开发追踪 hooks (50+ hooks: milestones, apps, specs, tasks, activities, sessions, config-backups, stats, timeline)
 │   │   └── ...                  # 其余 hooks
 │   │
 │   ├── stores/                  # Zustand 状态 (7 个)
@@ -169,7 +171,7 @@ personal-info-frontend/
 │   │   ├── bank-accounts/       # 银行账户
 │   │   └── credentials/         # 网站账号密码 (CRUD + 密码脱敏 + 复制)
 │   │
-│   ├── pages/                   # 页面组件 (44 个)
+│   ├── pages/                   # 页面组件 (45 个)
 │   │   ├── dashboard.tsx        # 仪表盘
 │   │   ├── system-dashboard.tsx # 系统看板
 │   │   ├── machines.tsx         # 远程设备 (WoL+关机+摄像头状态停止按钮)
@@ -204,6 +206,7 @@ personal-info-frontend/
 │   │   │   ├── housing-new.tsx          # 创建房产页 (手动/从邮件初始化)
 │   │   │   ├── housing-detail.tsx       # 房产详情页 (租约列表)
 │   │   │   └── housing-tenancy-detail.tsx # 租约详情页 (单页滚动+侧边锚点)
+│   │   ├── dev-tracker.tsx       # 开发追踪 (8 tab 单页: Dashboard/Milestones/Apps/Specs/Tasks/Activities/Sessions/Config Backups)
 │   │   ├── files.tsx            # 文件管理
 │   │   ├── wordbook.tsx         # 单词本
 │   │   ├── homework/            # 作业 (中文/数学/英语/批改)
@@ -214,7 +217,7 @@ personal-info-frontend/
 │   │   ├── constants.ts         # 常量定义
 │   │   └── validators.ts        # Zod schemas
 │   │
-│   └── types/                   # TypeScript 类型 (23 个)
+│   └── types/                   # TypeScript 类型 (24 个)
 │       ├── knowledge.ts         # 知识库类型 (Atom, ReviewAtom, LearningPlan 等)
 │       ├── game-design.ts       # 技能设计类型 (SkillAtom, Rule, OriginalSkill, SkillInstance, Modifier)
 │       ├── game-workshop.ts     # 框架设计类型 (Project, Phase, AISection, DesignEntry)
@@ -226,6 +229,7 @@ personal-info-frontend/
 │       ├── person.ts            # 成员类型
 │       ├── document.ts          # 证件类型
 │       ├── credential.ts        # 网站账号密码类型 (WebCredential, category options)
+│       ├── dev-tracker.ts       # 开发追踪类型 (Category, App, Milestone, Spec, Task, Activity, Session, ConfigBackup, DevTrackerOverview, Timeline)
 │       └── ...                  # 其余类型定义
 ```
 
@@ -254,6 +258,7 @@ export const argoClient = createApiClient('/argo-api');             // Argo Work
 export const macCameraClient = createApiClient('/mac-camera-api');  // MacBook 摄像头
 export const msgGwClient = createApiClient('/notification-api');    // 消息网关
 export const starlingClient = createApiClient('/starling-api');     // Starling Bank 适配器
+export const devTrackerClient = createApiClient('/dev-tracker-api'); // 开发追踪
 ```
 
 ### 3.2 API 端点清单
@@ -334,6 +339,42 @@ export const starlingClient = createApiClient('/starling-api');     // Starling 
 | | `/api/v1/housing/tenancies/{id}/emails/sync` | POST | 同步关联邮件 |
 | | `/api/v1/housing/tenancies/{id}/emails` | POST | 手动关联邮件 |
 | | `/api/v1/housing/email-links/{id}` | DELETE | 解绑邮件 |
+| **开发追踪** (via `/dev-tracker-api`) | `/api/v1/categories` | GET/POST | 应用分类 CRUD |
+| | `/api/v1/categories/{id}` | GET/PATCH/DELETE | 分类详情/更新/删除 |
+| | `/api/v1/apps` | GET/POST | 应用列表/创建 |
+| | `/api/v1/apps/{id}` | GET/PATCH/DELETE | 应用详情/更新/删除 |
+| | `/api/v1/apps/{id}/categories` | POST/DELETE | 应用分类关联 |
+| | `/api/v1/milestones` | GET/POST | 里程碑列表/创建 (分页) |
+| | `/api/v1/milestones/{id}` | GET/PATCH/DELETE | 里程碑详情/更新/删除 |
+| | `/api/v1/milestones/{id}/complete` | POST | 完成里程碑 |
+| | `/api/v1/milestones/{id}/summary` | GET | 里程碑摘要 |
+| | `/api/v1/specs` | GET/POST | Spec 列表/创建 (分页) |
+| | `/api/v1/specs/{id}` | GET/PATCH/DELETE | Spec 详情/更新/删除 |
+| | `/api/v1/specs/{id}/advance` | POST | Spec 阶段前进 |
+| | `/api/v1/specs/{id}/retreat` | POST | Spec 阶段回退 |
+| | `/api/v1/specs/{id}/cancel` | POST | 取消 Spec |
+| | `/api/v1/specs/{id}/sync` | POST | 同步 Spec 内容 |
+| | `/api/v1/specs/{id}/tasks` | GET | Spec 关联任务 |
+| | `/api/v1/tasks` | GET/POST | 任务列表/创建 (分页) |
+| | `/api/v1/tasks/{id}` | GET/PATCH/DELETE | 任务详情/更新/删除 |
+| | `/api/v1/tasks/{id}/complete` | POST | 完成任务 |
+| | `/api/v1/tasks/{id}/retreat` | POST | 回退任务状态 |
+| | `/api/v1/activities` | GET/POST | 活动记录列表/创建 (分页) |
+| | `/api/v1/activities/{id}` | PATCH | 更新活动 (关联 task) |
+| | `/api/v1/activities/unlinked` | GET | 未关联活动列表 |
+| | `/api/v1/activities/bulk-link` | POST | 批量关联活动到任务 |
+| | `/api/v1/sessions` | GET | 会话列表 (分页) |
+| | `/api/v1/sessions/{id}` | GET/DELETE | 会话详情/删除 |
+| | `/api/v1/sessions/{id}/link-task` | PATCH | 会话关联任务 |
+| | `/api/v1/sessions/{id}/reanalyze` | POST | 重新分析会话 |
+| | `/api/v1/config-backups` | GET | 配置备份列表 (分页) |
+| | `/api/v1/config-backups/latest` | GET | 最新配置备份 |
+| | `/api/v1/config-backups/{id}` | GET/DELETE | 配置备份详情/删除 |
+| | `/api/v1/stats/overview` | GET | 总览统计 |
+| | `/api/v1/stats/activity-trend` | GET | 活动趋势 (days 参数) |
+| | `/api/v1/stats/service-breakdown` | GET | 服务分布统计 |
+| | `/api/v1/stats/spec-phases` | GET | Spec 阶段分布 |
+| | `/api/v1/timeline` | GET | 开发时间线 (days, category 参数) |
 
 ### 3.3 React Query Hooks 示例
 
@@ -888,11 +929,11 @@ export default App;
 
 ## 8. 路由与导航架构
 
-### 8.1 侧边栏导航 (16 项)
+### 8.1 侧边栏导航 (17 项)
 
 ```
 仪表盘 / 系统看板 / 消息网关 / 远程设备 / 文档中心 / 效能评估 / 数据源 / 财务统计 /
-作业助手 / 单词本 / 知识库 / 知识复习 / 游戏开发 / 家庭成员 / 文件管理 / 设置
+开发追踪 / 作业助手 / 单词本 / 知识库 / 知识复习 / 游戏开发 / 家庭成员 / 文件管理 / 设置
 ```
 
 ### 8.2 Tab 导航整合
@@ -906,6 +947,7 @@ export default App;
 | 知识复习 `/knowledge/review` | 知识复习 / 学习计划 | 扁平路由 + 内联 PageTabs |
 | 技能设计 `/game-dev/skills` | 工作台 / 原子库 / 参考技能 / 修饰器 / 规则 | 嵌套路由 + `GameDevLayout` |
 | 房产管理 `/life/housing` | 列表 / 新建 / 详情 / 租约详情 | 扁平路由, 单页滚动+锚点导航 |
+| 开发追踪 `/dev-tracker` | Dashboard / Milestones / Apps / Specs / Tasks / Activities / Sessions / Config Backups | 单页 8 tab, 内联 state 切换 |
 
 知识复习使用内联 PageTabs（非 Layout wrapper）是因为复习进行中需要隐藏 tab 实现沉浸模式。
 房产管理使用单页滚动+侧边锚点导航（非 Tab 切换），一眼看到租约全貌。
@@ -1044,6 +1086,7 @@ npm run electron:build
 
 | 日期 | 变更 | 作者 |
 |------|------|------|
+| 2026-03-27 | 新增开发追踪模块(dev-tracker: 8 tab 单页, 里程碑/应用/Spec/任务/活动/会话/配置备份, 50+ hooks, 展开折叠交互, 批量活动关联, Spec 阶段管理) | Claude |
 | 2026-03-26 | 新增网站账号密码管理模块(credentials CRUD, 密码脱敏, 复制, 分类筛选, stat card) | Claude |
 | 2026-03-26 | 新增 GitHub Actions CI/CD (docker-publish.yml) | Claude |
 | 2026-03-26 | 邮件撰写增强：附件上传(拖拽+点击, react-dropzone, 10MB限制, multipart提交) | Claude |
