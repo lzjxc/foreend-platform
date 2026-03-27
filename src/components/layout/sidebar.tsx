@@ -20,6 +20,7 @@ import {
   MessageSquare,
   Timer,
   Compass,
+  GitBranch,
 } from 'lucide-react';
 import { useUIStore } from '@/stores/ui-store';
 import { cn } from '@/lib/utils';
@@ -40,6 +41,7 @@ const navItems = [
   { path: '/knowledge', icon: Brain, label: '知识库' },
   { path: '/knowledge/review', icon: RotateCcw, label: '知识复习' },
   { path: '/game-dev', icon: Gamepad2, label: '游戏开发' },
+  { path: '/dev-tracker', icon: GitBranch, label: '开发追踪' },
   { path: '/life', icon: Compass, label: '生活助手' },
   { path: '/members', icon: Users, label: '家庭成员' },
   { path: '/files', icon: Upload, label: '文件管理' },

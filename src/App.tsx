@@ -43,6 +43,7 @@ import GameDevArt2DGenerator from '@/pages/game-dev-art2d-generator';
 import GameDevArt2DHistory from '@/pages/game-dev-art2d-history';
 import MsgGateway from '@/pages/msg-gateway';
 import CronJobs from '@/pages/cron-jobs';
+import DevTracker from '@/pages/dev-tracker';
 import LifeLanding from '@/pages/life/landing';
 import LifeTravelList from '@/pages/life/travel-list';
 import LifeTravelDetail from '@/pages/life/travel-detail';
@@ -128,6 +129,9 @@ function App() {
           <Route path="generator" element={<GameDevArt2DGenerator />} />
           <Route path="history" element={<GameDevArt2DHistory />} />
         </Route>
+
+        {/* Dev Tracker */}
+        <Route path="dev-tracker" element={<DevTracker />} />
 
         {/* Life App — landing + sub-modules */}
         <Route path="life" element={<LifeLanding />} />
