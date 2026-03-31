@@ -344,6 +344,14 @@ function OverviewTab({
 }) {
   const patchTransport = usePatchTransport();
   const patchAccommodation = usePatchAccommodation();
+  const patchActivity = usePatchActivity();
+
+  // Collect all paid activities for tickets section
+  const paidActivities = plan.days.flatMap((day) =>
+    day.activities
+      .filter((a) => a.price_adult > 0 && a.type !== 'transport')
+      .map((a) => ({ ...a, city: day.city, dayNumber: day.day_number }))
+  );
 
   return (
     <div className="space-y-6">
@@ -365,6 +373,66 @@ function OverviewTab({
                 disabled={patchAccommodation.isPending}
               />
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Tickets */}
+      {paidActivities.length > 0 && (
+        <div className="space-y-2">
+          <h2 className="text-base font-semibold">门票</h2>
+          <div className="overflow-x-auto rounded-lg border">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/50">
+                <tr>
+                  <th className="px-3 py-2.5 text-center font-medium w-10">状态</th>
+                  <th className="px-3 py-2.5 text-left font-medium">景点</th>
+                  <th className="px-3 py-2.5 text-left font-medium">城市</th>
+                  <th className="px-3 py-2.5 text-right font-medium">票价</th>
+                  <th className="px-3 py-2.5 text-center font-medium">链接</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {paidActivities.map((act) => (
+                  <tr key={act.id} className="hover:bg-muted/30">
+                    <td className="px-3 py-2.5 text-center">
+                      {act.confirmed ? (
+                        <ConfirmedToggle
+                          confirmed
+                          bookedAt={act.booked_at}
+                          onClick={() => patchActivity.mutate({ id: act.id, data: { confirmed: false } })}
+                          disabled={patchActivity.isPending}
+                        />
+                      ) : act.booking_required ? (
+                        <span className="text-[10px] bg-red-100 text-red-700 rounded px-1.5 py-0.5 font-medium whitespace-nowrap">需预约</span>
+                      ) : (
+                        <ConfirmedToggle
+                          confirmed={false}
+                          onClick={() => patchActivity.mutate({ id: act.id, data: { confirmed: true } })}
+                          disabled={patchActivity.isPending}
+                        />
+                      )}
+                    </td>
+                    <td className="px-3 py-2.5">
+                      <span className="font-medium">{act.name}</span>
+                      <span className="text-muted-foreground ml-1.5 text-xs">D{act.dayNumber}</span>
+                    </td>
+                    <td className="px-3 py-2.5 text-muted-foreground">{act.city}</td>
+                    <td className="px-3 py-2.5 text-right">
+                      £{act.price_adult}{act.child_free ? ' (童免)' : ''}
+                    </td>
+                    <td className="px-3 py-2.5 text-center flex gap-1.5 justify-center">
+                      <a href={googleMapsUrl(act.name, act.city)} target="_blank" rel="noopener noreferrer"
+                        className="text-muted-foreground hover:text-blue-600"><MapPin className="w-3.5 h-3.5" /></a>
+                      {act.booking_url && (
+                        <a href={act.booking_url} target="_blank" rel="noopener noreferrer"
+                          className="text-muted-foreground hover:text-foreground"><ExternalLink className="w-3.5 h-3.5" /></a>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
       )}
