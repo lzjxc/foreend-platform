@@ -629,9 +629,14 @@ function DayTab({ day }: { day: DayItinerary }) {
                         <ExternalLink className="w-3.5 h-3.5" />
                       </a>
                     )}
-                    {needsBooking && !act.confirmed && (
-                      <span className="text-[10px] bg-amber-100 text-amber-700 rounded px-1.5 py-0.5 font-medium">
-                        待预定
+                    {needsBooking && !act.confirmed && act.booking_required && (
+                      <span className="text-[10px] bg-red-100 text-red-700 rounded px-1.5 py-0.5 font-medium">
+                        需预约
+                      </span>
+                    )}
+                    {needsBooking && !act.confirmed && !act.booking_required && (
+                      <span className="text-[10px] bg-gray-100 text-gray-500 rounded px-1.5 py-0.5 font-medium">
+                        可现场买
                       </span>
                     )}
                   </div>
