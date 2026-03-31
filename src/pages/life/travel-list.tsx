@@ -204,7 +204,14 @@ export default function LifeTravelList() {
                 onClick={() => navigate(`/life/travel/${plan.id}`)}
               >
                 <div className="space-y-0.5">
-                  <p className="font-semibold">{plan.title}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="font-semibold">{plan.title}</p>
+                    {plan.confirmed && (
+                      <span className="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800">
+                        已确认
+                      </span>
+                    )}
+                  </div>
                   {subtitle && (
                     <p className="text-sm text-muted-foreground">{subtitle}</p>
                   )}

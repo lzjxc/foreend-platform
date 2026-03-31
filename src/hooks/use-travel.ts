@@ -76,3 +76,56 @@ export function useExportTravelPlan() {
     },
   });
 }
+
+export function usePatchPlan() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ planId, data }: { planId: string; data: Record<string, unknown> }) => {
+      const res = await lifeAppClient.patch(`/api/v1/travel/plans/${planId}`, data);
+      return res.data;
+    },
+    onSuccess: (_d, { planId }) => {
+      qc.invalidateQueries({ queryKey: travelKeys.plan(planId) });
+      qc.invalidateQueries({ queryKey: travelKeys.plans() });
+    },
+  });
+}
+
+export function usePatchActivity() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: Record<string, unknown> }) => {
+      const res = await lifeAppClient.patch(`/api/v1/travel/activities/${id}`, data);
+      return res.data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: travelKeys.all });
+    },
+  });
+}
+
+export function usePatchAccommodation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: Record<string, unknown> }) => {
+      const res = await lifeAppClient.patch(`/api/v1/travel/accommodations/${id}`, data);
+      return res.data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: travelKeys.all });
+    },
+  });
+}
+
+export function usePatchTransport() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: Record<string, unknown> }) => {
+      const res = await lifeAppClient.patch(`/api/v1/travel/transports/${id}`, data);
+      return res.data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: travelKeys.all });
+    },
+  });
+}

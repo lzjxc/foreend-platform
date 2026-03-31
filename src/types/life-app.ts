@@ -44,10 +44,12 @@ export interface TravelPlanSummary {
   end_date: string;
   cities: string[];
   status: TravelPlanStatus;
+  confirmed: boolean;
   created_at: string | null;
 }
 
 export interface Activity {
+  id: string;
   time: string;
   name: string;
   type: 'attraction' | 'meal' | 'transport' | 'rest';
@@ -58,6 +60,7 @@ export interface Activity {
   address: string | null;
   notes: string | null;
   booking_url: string | null;
+  confirmed: boolean;
 }
 
 export interface DayItinerary {
@@ -69,14 +72,32 @@ export interface DayItinerary {
 }
 
 export interface TransportLeg {
+  id: string;
   from_city: string;
   to_city: string;
   mode: string;
   operator: string | null;
+  departure_time: string | null;
   duration_min: number;
-  price_estimate_per_adult: number;
+  price_total: number;
   child_free: boolean;
+  confirmed: boolean;
   notes: string | null;
+}
+
+export interface Accommodation {
+  id: string;
+  city: string;
+  checkin: string;
+  checkout: string;
+  name: string | null;
+  price: number | null;
+  rating: number | null;
+  location: string | null;
+  type_desc: string | null;
+  booking_url: string | null;
+  cancellation_policy: string | null;
+  confirmed: boolean;
 }
 
 export interface BudgetSummary {
@@ -93,6 +114,7 @@ export interface TravelPlan extends TravelPlanSummary {
   adults: number;
   children: number;
   transport_legs: TransportLeg[];
+  accommodations: Accommodation[];
   total_budget: BudgetSummary | null;
   days: DayItinerary[];
   error_message: string | null;

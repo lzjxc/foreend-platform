@@ -1,10 +1,17 @@
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { ChevronLeft, Download, Loader2 } from 'lucide-react';
+import { ChevronLeft, Download, Loader2, Check, Circle, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
-import { useTravelPlan, useExportTravelPlan } from '@/hooks/use-travel';
-import type { Activity } from '@/types/life-app';
+import {
+  useTravelPlan,
+  useExportTravelPlan,
+  usePatchPlan,
+  usePatchActivity,
+  usePatchAccommodation,
+  usePatchTransport,
+} from '@/hooks/use-travel';
+import type { Activity, TravelPlan, DayItinerary, Accommodation } from '@/types/life-app';
 
 // ── Helpers ───────────────────────────────────────────────────
 
@@ -53,13 +60,47 @@ function ChildFriendlyStars({ rating }: { rating: number }) {
   );
 }
 
+function ConfirmedToggle({
+  confirmed,
+  onClick,
+  disabled,
+}: {
+  confirmed: boolean;
+  onClick: () => void;
+  disabled?: boolean;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className={`shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${
+        confirmed
+          ? 'border-green-500 bg-green-500 text-white'
+          : 'border-gray-300 hover:border-gray-400'
+      } ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+    >
+      {confirmed && <Check className="w-3 h-3" />}
+    </button>
+  );
+}
+
+function formatDuration(min: number) {
+  if (min >= 60) {
+    const h = Math.floor(min / 60);
+    const m = min % 60;
+    return m > 0 ? `${h}h${m}m` : `${h}h`;
+  }
+  return `${min}m`;
+}
+
 // ── Main component ────────────────────────────────────────────
 
 export default function LifeTravelDetail() {
   const { planId } = useParams<{ planId: string }>();
   const { data: plan, isLoading } = useTravelPlan(planId ?? '');
   const exportPlan = useExportTravelPlan();
-  const [activeTab, setActiveTab] = useState(0); // 0 = overview, 1+ = day tabs
+  const patchPlan = usePatchPlan();
+  const [activeTab, setActiveTab] = useState(0);
 
   async function handleExport() {
     if (!planId) return;
@@ -68,6 +109,11 @@ export default function LifeTravelDetail() {
     } catch {
       toast.error('导出失败');
     }
+  }
+
+  async function handleTogglePlanConfirmed() {
+    if (!planId || !plan) return;
+    await patchPlan.mutateAsync({ planId, data: { confirmed: !plan.confirmed } });
   }
 
   if (isLoading || !plan) {
@@ -150,9 +196,23 @@ export default function LifeTravelDetail() {
         返回计划列表
       </Link>
 
-      {/* Title + export */}
+      {/* Title + confirmed + export */}
       <div className="flex items-start justify-between gap-4">
-        <h1 className="text-2xl font-bold">{plan.title}</h1>
+        <div className="flex items-center gap-3">
+          <h1 className="text-2xl font-bold">{plan.title}</h1>
+          <button
+            onClick={handleTogglePlanConfirmed}
+            disabled={patchPlan.isPending}
+            className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+              plan.confirmed
+                ? 'bg-blue-100 text-blue-800 hover:bg-blue-200'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}
+          >
+            {plan.confirmed ? <Check className="w-3 h-3" /> : <Circle className="w-3 h-3" />}
+            {plan.confirmed ? '已确认出行' : '草案'}
+          </button>
+        </div>
         <Button
           variant="outline"
           size="sm"
@@ -160,7 +220,7 @@ export default function LifeTravelDetail() {
           onClick={handleExport}
         >
           <Download className="h-4 w-4 mr-1.5" />
-          导出 Markdown
+          导出
         </Button>
       </div>
 
@@ -168,21 +228,20 @@ export default function LifeTravelDetail() {
       <div className="flex flex-wrap gap-4 rounded-lg border bg-muted/40 px-5 py-3 text-sm">
         {plan.start_date && plan.end_date && (
           <span>
-            📅 {plan.start_date} ~ {plan.end_date}
+            {plan.start_date} ~ {plan.end_date}
           </span>
         )}
         <span>
-          👥 {plan.adults}大{plan.children}小
+          {plan.adults}大{plan.children}小
         </span>
         <span>
-          🚂{' '}
           {transportModeLabel[
             (plan as unknown as { transport_mode?: string }).transport_mode ?? ''
           ] ?? '公共交通'}
         </span>
         {budgetTotal != null && budget && (
           <span>
-            💰 {budgetTotal.toLocaleString()} {budget.currency}
+            {budgetTotal.toLocaleString()} {budget.currency}
           </span>
         )}
       </div>
@@ -229,8 +288,6 @@ export default function LifeTravelDetail() {
 
 // ── Overview tab ──────────────────────────────────────────────
 
-import type { TravelPlan } from '@/types/life-app';
-
 function OverviewTab({
   plan,
   budgetTotal,
@@ -238,8 +295,33 @@ function OverviewTab({
   plan: TravelPlan;
   budgetTotal: number | null;
 }) {
+  const patchTransport = usePatchTransport();
+  const patchAccommodation = usePatchAccommodation();
+
   return (
     <div className="space-y-6">
+      {/* Accommodations */}
+      {plan.accommodations && plan.accommodations.length > 0 && (
+        <div className="space-y-2">
+          <h2 className="text-base font-semibold">住宿</h2>
+          <div className="space-y-2">
+            {plan.accommodations.map((acc) => (
+              <AccommodationCard
+                key={acc.id}
+                acc={acc}
+                onToggleConfirmed={() =>
+                  patchAccommodation.mutate({
+                    id: acc.id,
+                    data: { confirmed: !acc.confirmed },
+                  })
+                }
+                disabled={patchAccommodation.isPending}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Transport legs */}
       {plan.transport_legs.length > 0 && (
         <div className="space-y-2">
@@ -248,34 +330,45 @@ function OverviewTab({
             <table className="w-full text-sm">
               <thead className="bg-muted/50">
                 <tr>
-                  <th className="px-4 py-2.5 text-left font-medium">出发</th>
-                  <th className="px-4 py-2.5 text-left font-medium">到达</th>
-                  <th className="px-4 py-2.5 text-left font-medium">方式</th>
-                  <th className="px-4 py-2.5 text-left font-medium">运营商</th>
-                  <th className="px-4 py-2.5 text-right font-medium">时长</th>
-                  <th className="px-4 py-2.5 text-right font-medium">成人价</th>
-                  <th className="px-4 py-2.5 text-center font-medium">儿童免费</th>
+                  <th className="px-3 py-2.5 text-center font-medium w-10">状态</th>
+                  <th className="px-3 py-2.5 text-left font-medium">路线</th>
+                  <th className="px-3 py-2.5 text-left font-medium">方式</th>
+                  <th className="px-3 py-2.5 text-left font-medium">运营商</th>
+                  <th className="px-3 py-2.5 text-left font-medium">出发</th>
+                  <th className="px-3 py-2.5 text-right font-medium">时长</th>
+                  <th className="px-3 py-2.5 text-right font-medium">总价</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {plan.transport_legs.map((leg, i) => (
-                  <tr key={i} className="hover:bg-muted/30">
-                    <td className="px-4 py-2.5">{leg.from_city}</td>
-                    <td className="px-4 py-2.5">{leg.to_city}</td>
-                    <td className="px-4 py-2.5">{leg.mode}</td>
-                    <td className="px-4 py-2.5 text-muted-foreground">
+                {plan.transport_legs.map((leg) => (
+                  <tr key={leg.id} className="hover:bg-muted/30">
+                    <td className="px-3 py-2.5 text-center">
+                      <ConfirmedToggle
+                        confirmed={leg.confirmed}
+                        onClick={() =>
+                          patchTransport.mutate({
+                            id: leg.id,
+                            data: { confirmed: !leg.confirmed },
+                          })
+                        }
+                        disabled={patchTransport.isPending}
+                      />
+                    </td>
+                    <td className="px-3 py-2.5">
+                      {leg.from_city} → {leg.to_city}
+                    </td>
+                    <td className="px-3 py-2.5">{leg.mode}</td>
+                    <td className="px-3 py-2.5 text-muted-foreground">
                       {leg.operator ?? '—'}
                     </td>
-                    <td className="px-4 py-2.5 text-right">
-                      {leg.duration_min >= 60
-                        ? `${Math.floor(leg.duration_min / 60)}h${leg.duration_min % 60 > 0 ? `${leg.duration_min % 60}m` : ''}`
-                        : `${leg.duration_min}m`}
+                    <td className="px-3 py-2.5">
+                      {leg.departure_time ?? '—'}
                     </td>
-                    <td className="px-4 py-2.5 text-right">
-                      {leg.price_estimate_per_adult.toLocaleString()}
+                    <td className="px-3 py-2.5 text-right">
+                      {formatDuration(leg.duration_min)}
                     </td>
-                    <td className="px-4 py-2.5 text-center">
-                      {leg.child_free ? '✓' : '—'}
+                    <td className="px-3 py-2.5 text-right">
+                      £{leg.price_total}
                     </td>
                   </tr>
                 ))}
@@ -338,8 +431,64 @@ function OverviewTab({
         </div>
       )}
 
-      {!plan.transport_legs.length && !plan.total_budget && (
+      {!plan.transport_legs.length && !plan.total_budget && !(plan.accommodations?.length) && (
         <p className="text-muted-foreground text-sm">暂无概览数据</p>
+      )}
+    </div>
+  );
+}
+
+// ── Accommodation card ───────────────────────────────────────
+
+function AccommodationCard({
+  acc,
+  onToggleConfirmed,
+  disabled,
+}: {
+  acc: Accommodation;
+  onToggleConfirmed: () => void;
+  disabled: boolean;
+}) {
+  return (
+    <div className="flex items-start gap-3 rounded-lg border bg-card px-4 py-3 shadow-sm">
+      <ConfirmedToggle
+        confirmed={acc.confirmed}
+        onClick={onToggleConfirmed}
+        disabled={disabled}
+      />
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
+          <p className="font-semibold text-sm">{acc.name ?? acc.city}</p>
+          {acc.rating && (
+            <span className="text-xs bg-blue-100 text-blue-700 rounded px-1.5 py-0.5 font-medium">
+              {acc.rating}
+            </span>
+          )}
+        </div>
+        <p className="text-xs text-muted-foreground mt-0.5 flex flex-wrap gap-x-3">
+          <span>{acc.city}</span>
+          <span>{acc.checkin} ~ {acc.checkout}</span>
+          {acc.price && <span className="font-medium text-foreground">£{acc.price}</span>}
+          {acc.type_desc && <span>{acc.type_desc}</span>}
+        </p>
+        <p className="text-xs text-muted-foreground mt-0.5 flex flex-wrap gap-x-3">
+          {acc.location && <span>{acc.location}</span>}
+          {acc.cancellation_policy && (
+            <span className={acc.cancellation_policy.includes('免费') ? 'text-green-600' : 'text-orange-600'}>
+              {acc.cancellation_policy}
+            </span>
+          )}
+        </p>
+      </div>
+      {acc.booking_url && (
+        <a
+          href={acc.booking_url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <ExternalLink className="w-4 h-4" />
+        </a>
       )}
     </div>
   );
@@ -347,9 +496,9 @@ function OverviewTab({
 
 // ── Day tab ───────────────────────────────────────────────────
 
-import type { DayItinerary } from '@/types/life-app';
-
 function DayTab({ day }: { day: DayItinerary }) {
+  const patchActivity = usePatchActivity();
+
   return (
     <div className="space-y-3">
       <div>
@@ -365,11 +514,25 @@ function DayTab({ day }: { day: DayItinerary }) {
         <p className="text-sm text-muted-foreground">暂无活动安排</p>
       ) : (
         <div className="space-y-2">
-          {day.activities.map((act, i) => (
+          {day.activities.map((act) => (
             <div
-              key={i}
-              className={`flex gap-4 rounded-r-lg border-l-4 px-4 py-3 ${activityBorderClass(act.type)}`}
+              key={act.id}
+              className={`flex gap-3 rounded-r-lg border-l-4 px-4 py-3 ${activityBorderClass(act.type)}`}
             >
+              {/* Confirmed toggle */}
+              <div className="pt-0.5">
+                <ConfirmedToggle
+                  confirmed={act.confirmed}
+                  onClick={() =>
+                    patchActivity.mutate({
+                      id: act.id,
+                      data: { confirmed: !act.confirmed },
+                    })
+                  }
+                  disabled={patchActivity.isPending}
+                />
+              </div>
+
               {/* Time */}
               <span className="w-12 shrink-0 text-xs text-gray-500 pt-0.5">
                 {act.time}
@@ -384,14 +547,13 @@ function DayTab({ day }: { day: DayItinerary }) {
                     <span>£{act.price_adult}</span>
                   )}
                   {act.duration_min > 0 && (
-                    <span>
-                      {act.duration_min >= 60
-                        ? `${Math.floor(act.duration_min / 60)}h${act.duration_min % 60 > 0 ? `${act.duration_min % 60}m` : ''}`
-                        : `${act.duration_min}m`}
-                    </span>
+                    <span>{formatDuration(act.duration_min)}</span>
                   )}
                   {act.child_friendly_rating > 0 && (
                     <ChildFriendlyStars rating={act.child_friendly_rating} />
+                  )}
+                  {act.notes && (
+                    <span className="text-gray-400">{act.notes}</span>
                   )}
                 </p>
               </div>
