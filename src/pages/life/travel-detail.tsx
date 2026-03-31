@@ -390,17 +390,21 @@ function OverviewTab({
                 {plan.transport_legs.map((leg) => (
                   <tr key={leg.id} className="hover:bg-muted/30">
                     <td className="px-3 py-2.5 text-center">
-                      <ConfirmedToggle
-                        confirmed={leg.confirmed}
-                        bookedAt={leg.booked_at}
-                        onClick={() =>
-                          patchTransport.mutate({
-                            id: leg.id,
-                            data: { confirmed: !leg.confirmed },
-                          })
-                        }
-                        disabled={patchTransport.isPending}
-                      />
+                      {leg.mode === 'bus' ? (
+                        <span className="text-[10px] text-blue-600 font-medium whitespace-nowrap">可刷卡</span>
+                      ) : (
+                        <ConfirmedToggle
+                          confirmed={leg.confirmed}
+                          bookedAt={leg.booked_at}
+                          onClick={() =>
+                            patchTransport.mutate({
+                              id: leg.id,
+                              data: { confirmed: !leg.confirmed },
+                            })
+                          }
+                          disabled={patchTransport.isPending}
+                        />
+                      )}
                     </td>
                     <td className="px-3 py-2.5">
                       {leg.from_city} → {leg.to_city}
@@ -576,8 +580,8 @@ function DayTab({ day }: { day: DayItinerary }) {
       ) : (
         <div className="space-y-2">
           {day.activities.map((act) => {
-            // Only show booking status for paid items or transport
-            const needsBooking = act.price_adult > 0 || act.type === 'transport';
+            // Only show booking status for paid attractions/activities (not transport — tracked in overview)
+            const needsBooking = act.price_adult > 0 && act.type !== 'transport';
             return (
               <div
                 key={act.id}
