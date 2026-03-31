@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { ChevronLeft, Download, Loader2, Check, Circle, ExternalLink, MapPin } from 'lucide-react';
+import { ChevronLeft, Download, Loader2, Check, Circle, ExternalLink, MapPin, Printer } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import {
   useTravelPlan,
   useExportTravelPlan,
+  useExportItinerary,
   usePatchPlan,
   usePatchActivity,
   usePatchAccommodation,
@@ -62,25 +63,31 @@ function ChildFriendlyStars({ rating }: { rating: number }) {
 
 function ConfirmedToggle({
   confirmed,
+  bookedAt,
   onClick,
   disabled,
 }: {
   confirmed: boolean;
+  bookedAt?: string | null;
   onClick: () => void;
   disabled?: boolean;
 }) {
+  const dateStr = bookedAt ? new Date(bookedAt).toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric' }) + '订' : null;
   return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      className={`shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${
-        confirmed
-          ? 'border-green-500 bg-green-500 text-white'
-          : 'border-gray-300 hover:border-gray-400'
-      } ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-    >
-      {confirmed && <Check className="w-3 h-3" />}
-    </button>
+    <div className="flex flex-col items-center gap-0.5">
+      <button
+        onClick={onClick}
+        disabled={disabled}
+        className={`shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${
+          confirmed
+            ? 'border-green-500 bg-green-500 text-white'
+            : 'border-gray-300 hover:border-gray-400'
+        } ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+      >
+        {confirmed && <Check className="w-3 h-3" />}
+      </button>
+      {dateStr && <span className="text-[10px] text-gray-400 whitespace-nowrap">{dateStr}</span>}
+    </div>
   );
 }
 
@@ -118,6 +125,7 @@ export default function LifeTravelDetail() {
   const { planId } = useParams<{ planId: string }>();
   const { data: plan, isLoading } = useTravelPlan(planId ?? '');
   const exportPlan = useExportTravelPlan();
+  const exportItinerary = useExportItinerary();
   const patchPlan = usePatchPlan();
   const [activeTab, setActiveTab] = useState(0);
 
@@ -125,6 +133,15 @@ export default function LifeTravelDetail() {
     if (!planId) return;
     try {
       await exportPlan.mutateAsync(planId);
+    } catch {
+      toast.error('导出失败');
+    }
+  }
+
+  async function handleExportItinerary() {
+    if (!planId) return;
+    try {
+      await exportItinerary.mutateAsync(planId);
     } catch {
       toast.error('导出失败');
     }
@@ -232,15 +249,26 @@ export default function LifeTravelDetail() {
             {plan.confirmed ? '已确认出行' : '草案'}
           </button>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          disabled={plan.status !== 'completed' || exportPlan.isPending}
-          onClick={handleExport}
-        >
-          <Download className="h-4 w-4 mr-1.5" />
-          导出
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={plan.status !== 'completed' || exportItinerary.isPending}
+            onClick={handleExportItinerary}
+          >
+            <Printer className="h-4 w-4 mr-1.5" />
+            行程单
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={plan.status !== 'completed' || exportPlan.isPending}
+            onClick={handleExport}
+          >
+            <Download className="h-4 w-4 mr-1.5" />
+            Markdown
+          </Button>
+        </div>
       </div>
 
       {/* Summary bar */}
@@ -364,6 +392,7 @@ function OverviewTab({
                     <td className="px-3 py-2.5 text-center">
                       <ConfirmedToggle
                         confirmed={leg.confirmed}
+                        bookedAt={leg.booked_at}
                         onClick={() =>
                           patchTransport.mutate({
                             id: leg.id,
@@ -472,6 +501,7 @@ function AccommodationCard({
     <div className="flex items-start gap-3 rounded-lg border bg-card px-4 py-3 shadow-sm">
       <ConfirmedToggle
         confirmed={acc.confirmed}
+        bookedAt={acc.booked_at}
         onClick={onToggleConfirmed}
         disabled={disabled}
       />
@@ -554,6 +584,7 @@ function DayTab({ day }: { day: DayItinerary }) {
               <div className="pt-0.5">
                 <ConfirmedToggle
                   confirmed={act.confirmed}
+                  bookedAt={act.booked_at}
                   onClick={() =>
                     patchActivity.mutate({
                       id: act.id,

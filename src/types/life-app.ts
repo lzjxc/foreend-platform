@@ -61,6 +61,7 @@ export interface Activity {
   notes: string | null;
   booking_url: string | null;
   confirmed: boolean;
+  booked_at: string | null;
 }
 
 export interface DayItinerary {
@@ -82,6 +83,7 @@ export interface TransportLeg {
   price_total: number;
   child_free: boolean;
   confirmed: boolean;
+  booked_at: string | null;
   notes: string | null;
 }
 
@@ -98,6 +100,7 @@ export interface Accommodation {
   booking_url: string | null;
   cancellation_policy: string | null;
   confirmed: boolean;
+  booked_at: string | null;
 }
 
 export interface BudgetSummary {

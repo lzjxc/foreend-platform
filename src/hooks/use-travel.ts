@@ -77,6 +77,24 @@ export function useExportTravelPlan() {
   });
 }
 
+export function useExportItinerary() {
+  return useMutation({
+    mutationFn: async (planId: string) => {
+      const response = await lifeAppClient.get(
+        `/api/v1/travel/plans/${planId}/itinerary`,
+        { responseType: 'text' }
+      );
+      const blob = new Blob([response.data], { type: 'text/html' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `itinerary-${planId}.html`;
+      a.click();
+      URL.revokeObjectURL(url);
+    },
+  });
+}
+
 export function usePatchPlan() {
   const qc = useQueryClient();
   return useMutation({
