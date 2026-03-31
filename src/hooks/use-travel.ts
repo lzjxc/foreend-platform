@@ -135,6 +135,31 @@ export function usePatchAccommodation() {
   });
 }
 
+export interface WeatherData {
+  city: string;
+  date: string;
+  temp_min: number;
+  temp_max: number;
+  descriptions: string[];
+  rain_probability: number;
+  wind_speed: number;
+}
+
+export function useWeather(city: string, date: string) {
+  return useQuery({
+    queryKey: [...travelKeys.all, 'weather', city, date],
+    queryFn: async () => {
+      const { data } = await lifeAppClient.get<WeatherData>(
+        `/api/v1/travel/weather?city=${encodeURIComponent(city)}&date=${date}`
+      );
+      return data;
+    },
+    enabled: !!city && !!date,
+    staleTime: 30 * 60 * 1000, // 30min cache
+    retry: false,
+  });
+}
+
 export function usePatchTransport() {
   const qc = useQueryClient();
   return useMutation({

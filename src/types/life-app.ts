@@ -63,6 +63,8 @@ export interface Activity {
   confirmed: boolean;
   booked_at: string | null;
   booking_required: boolean;
+  latitude: number | null;
+  longitude: number | null;
 }
 
 export interface DayItinerary {

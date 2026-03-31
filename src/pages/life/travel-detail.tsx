@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, lazy, Suspense } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { ChevronLeft, Download, Loader2, Check, Circle, ExternalLink, MapPin, Printer } from 'lucide-react';
+import { ChevronLeft, Download, Loader2, Check, Circle, ExternalLink, MapPin, Printer, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import {
@@ -11,8 +11,12 @@ import {
   usePatchActivity,
   usePatchAccommodation,
   usePatchTransport,
+  useWeather,
 } from '@/hooks/use-travel';
 import type { Activity, TravelPlan, DayItinerary, Accommodation } from '@/types/life-app';
+import WeatherCard from '@/components/travel/weather-card';
+
+const DayMap = lazy(() => import('@/components/travel/day-map'));
 
 // ── Helpers ───────────────────────────────────────────────────
 
@@ -353,8 +357,60 @@ function OverviewTab({
       .map((a) => ({ ...a, city: day.city, dayNumber: day.day_number }))
   );
 
+  // Collect unconfirmed booking_required activities
+  const pendingBookings = plan.days.flatMap((day) =>
+    day.activities
+      .filter((a) => a.booking_required && !a.confirmed)
+      .map((a) => ({ ...a, city: day.city, dayNumber: day.day_number, date: day.date }))
+  );
+
   return (
     <div className="space-y-6">
+      {/* Route summary card */}
+      <div className="rounded-lg border bg-gradient-to-r from-blue-50 to-indigo-50 px-5 py-4 space-y-2">
+        <h2 className="text-base font-semibold">路线概述</h2>
+        <p className="text-sm text-muted-foreground">
+          {plan.departure_city} → {plan.cities?.join(' → ')} → {plan.departure_city}
+        </p>
+        <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
+          <span>{plan.start_date} ~ {plan.end_date}</span>
+          <span>{plan.adults}大{plan.children}小</span>
+          {plan.city_nights && Object.entries(plan.city_nights).map(([city, nights]) => (
+            <span key={city}>{city} {nights}晚</span>
+          ))}
+        </div>
+      </div>
+
+      {/* Pending bookings action list */}
+      {pendingBookings.length > 0 && (
+        <div className="space-y-2">
+          <h2 className="text-base font-semibold flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-amber-500" />
+            待预订 ({pendingBookings.length})
+          </h2>
+          <div className="rounded-lg border border-amber-200 bg-amber-50 divide-y divide-amber-200">
+            {pendingBookings.map((act) => (
+              <div key={act.id} className="flex items-center gap-3 px-4 py-2.5 text-sm">
+                <button
+                  onClick={() => patchActivity.mutate({ id: act.id, data: { confirmed: true } })}
+                  disabled={patchActivity.isPending}
+                  className="text-[10px] bg-red-100 text-red-700 rounded px-2 py-0.5 font-medium whitespace-nowrap hover:bg-red-200 cursor-pointer shrink-0"
+                >需预约</button>
+                <span className="font-medium">{act.name}</span>
+                <span className="text-muted-foreground text-xs">D{act.dayNumber} · {act.city}</span>
+                {act.booking_url && (
+                  <a href={act.booking_url} target="_blank" rel="noopener noreferrer"
+                    className="text-blue-600 hover:underline text-xs ml-auto shrink-0">预订 →</a>
+                )}
+                {act.notes && (
+                  <span className="text-xs text-muted-foreground ml-auto max-w-[200px] truncate">{act.notes}</span>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Accommodations */}
       {plan.accommodations && plan.accommodations.length > 0 && (
         <div className="space-y-2">
@@ -639,6 +695,7 @@ function AccommodationCard({
 
 function DayTab({ day }: { day: DayItinerary }) {
   const patchActivity = usePatchActivity();
+  const { data: weather } = useWeather(day.city, day.date);
 
   return (
     <div className="space-y-3">
@@ -650,6 +707,14 @@ function DayTab({ day }: { day: DayItinerary }) {
           <p className="text-sm text-muted-foreground">{day.theme}</p>
         )}
       </div>
+
+      {/* Weather card */}
+      {weather && <WeatherCard weather={weather} />}
+
+      {/* Day map */}
+      <Suspense fallback={<div className="h-[350px] rounded-lg border bg-muted/30 animate-pulse" />}>
+        <DayMap activities={day.activities} city={day.city} />
+      </Suspense>
 
       {day.activities.length === 0 ? (
         <p className="text-sm text-muted-foreground">暂无活动安排</p>
