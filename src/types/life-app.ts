@@ -104,6 +104,8 @@ export interface Accommodation {
   cancellation_policy: string | null;
   confirmed: boolean;
   booked_at: string | null;
+  latitude: number | null;
+  longitude: number | null;
 }
 
 export interface BudgetSummary {

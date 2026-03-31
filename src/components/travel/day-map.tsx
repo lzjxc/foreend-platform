@@ -1,8 +1,8 @@
 import { useEffect } from 'react';
-import { MapContainer, TileLayer, Marker, Tooltip, Polyline, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Tooltip, Polyline, ScaleControl, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import type { Activity } from '@/types/life-app';
+import type { Activity, Accommodation } from '@/types/life-app';
 
 // Fix Leaflet default marker icon issue with bundlers
 delete (L.Icon.Default.prototype as unknown as Record<string, unknown>)._getIconUrl;
@@ -15,6 +15,7 @@ L.Icon.Default.mergeOptions({
 interface DayMapProps {
   activities: Activity[];
   city: string;
+  accommodation?: Accommodation | null;
 }
 
 function FitBounds({ positions }: { positions: [number, number][] }) {
@@ -42,12 +43,28 @@ function numberIcon(n: number) {
   });
 }
 
-export default function DayMap({ activities }: DayMapProps) {
+function labelIcon(label: string, color: string) {
+  return L.divIcon({
+    className: 'custom-marker',
+    html: `<div style="
+      background: ${color}; color: white; border-radius: 4px;
+      padding: 2px 6px; font-size: 11px; font-weight: 700;
+      border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+      white-space: nowrap;
+    ">${label}</div>`,
+    iconSize: [40, 22],
+    iconAnchor: [20, 11],
+  });
+}
+
+export default function DayMap({ activities, accommodation }: DayMapProps) {
   const geoActivities = activities.filter(
     (a) => a.latitude != null && a.longitude != null && a.type !== 'transport'
   );
 
-  if (geoActivities.length === 0) {
+  const hasAccGeo = accommodation?.latitude != null && accommodation?.longitude != null;
+
+  if (geoActivities.length === 0 && !hasAccGeo) {
     return (
       <div className="rounded-lg border bg-muted/30 p-4 text-sm text-muted-foreground text-center">
         暂无地理坐标数据，
@@ -56,10 +73,22 @@ export default function DayMap({ activities }: DayMapProps) {
     );
   }
 
-  const positions: [number, number][] = geoActivities.map((a) => [
-    a.latitude!,
-    a.longitude!,
-  ]);
+  const positions: [number, number][] = [];
+
+  // Start: accommodation
+  if (hasAccGeo) {
+    positions.push([accommodation!.latitude!, accommodation!.longitude!]);
+  }
+
+  // Activities
+  for (const a of geoActivities) {
+    positions.push([a.latitude!, a.longitude!]);
+  }
+
+  // End: back to accommodation
+  if (hasAccGeo) {
+    positions.push([accommodation!.latitude!, accommodation!.longitude!]);
+  }
 
   return (
     <div className="rounded-lg border overflow-hidden" style={{ height: 350 }}>
@@ -74,7 +103,21 @@ export default function DayMap({ activities }: DayMapProps) {
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
         <FitBounds positions={positions} />
+        <ScaleControl position="bottomleft" metric imperial={false} />
 
+        {/* Accommodation marker */}
+        {hasAccGeo && (
+          <Marker
+            position={[accommodation!.latitude!, accommodation!.longitude!]}
+            icon={labelIcon('住宿', '#10b981')}
+          >
+            <Tooltip permanent direction="right" offset={[16, 0]} className="marker-tooltip">
+              <span style={{ fontSize: 11, fontWeight: 500 }}>{accommodation!.name ?? '住宿'}</span>
+            </Tooltip>
+          </Marker>
+        )}
+
+        {/* Activity markers */}
         {geoActivities.map((act, idx) => (
           <Marker
             key={act.id}
@@ -87,6 +130,7 @@ export default function DayMap({ activities }: DayMapProps) {
           </Marker>
         ))}
 
+        {/* Route polyline: accommodation → activities → accommodation */}
         {positions.length > 1 && (
           <Polyline
             positions={positions}

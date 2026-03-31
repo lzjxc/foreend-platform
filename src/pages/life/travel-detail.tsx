@@ -341,7 +341,7 @@ export default function LifeTravelDetail() {
       )}
       {plan.days.map((day, idx) =>
         activeTab === idx + 1 ? (
-          <DayTab key={day.date} day={day} />
+          <DayTab key={day.date} day={day} accommodations={plan.accommodations} />
         ) : null
       )}
     </div>
@@ -704,9 +704,12 @@ function AccommodationCard({
 
 // ── Day tab ───────────────────────────────────────────────────
 
-function DayTab({ day }: { day: DayItinerary }) {
+function DayTab({ day, accommodations }: { day: DayItinerary; accommodations?: Accommodation[] }) {
   const patchActivity = usePatchActivity();
   const { data: weather } = useWeather(day.city, day.date);
+
+  // Find accommodation for this day (checkin <= date < checkout)
+  const dayAcc = accommodations?.find((a) => a.checkin <= day.date && day.date < a.checkout) ?? null;
 
   return (
     <div className="space-y-3">
@@ -725,7 +728,7 @@ function DayTab({ day }: { day: DayItinerary }) {
       {/* Day map */}
       <MapErrorBoundary>
         <Suspense fallback={<div className="h-[350px] rounded-lg border bg-muted/30 animate-pulse" />}>
-          <DayMap activities={day.activities} city={day.city} />
+          <DayMap activities={day.activities} city={day.city} accommodation={dayAcc} />
         </Suspense>
       </MapErrorBoundary>
 
