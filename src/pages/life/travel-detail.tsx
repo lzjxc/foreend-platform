@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { ChevronLeft, Download, Loader2, Check, Circle, ExternalLink } from 'lucide-react';
+import { ChevronLeft, Download, Loader2, Check, Circle, ExternalLink, MapPin } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import {
@@ -91,6 +91,25 @@ function formatDuration(min: number) {
     return m > 0 ? `${h}h${m}m` : `${h}h`;
   }
   return `${min}m`;
+}
+
+function googleMapsUrl(name: string, city?: string) {
+  const query = city ? `${name}, ${city}` : name;
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
+}
+
+function MapLink({ name, city }: { name: string; city?: string }) {
+  return (
+    <a
+      href={googleMapsUrl(name, city)}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="shrink-0 text-muted-foreground hover:text-blue-600 transition-colors"
+      title="在 Google Maps 中查看"
+    >
+      <MapPin className="w-3.5 h-3.5" />
+    </a>
+  );
 }
 
 // ── Main component ────────────────────────────────────────────
@@ -480,16 +499,28 @@ function AccommodationCard({
           )}
         </p>
       </div>
-      {acc.booking_url && (
+      <div className="flex flex-col gap-2 shrink-0">
         <a
-          href={acc.booking_url}
+          href={googleMapsUrl(acc.name ?? acc.city, acc.city)}
           target="_blank"
           rel="noopener noreferrer"
-          className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
+          className="text-muted-foreground hover:text-blue-600 transition-colors"
+          title="在 Google Maps 中查看"
         >
-          <ExternalLink className="w-4 h-4" />
+          <MapPin className="w-4 h-4" />
         </a>
-      )}
+        {acc.booking_url && (
+          <a
+            href={acc.booking_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-muted-foreground hover:text-foreground transition-colors"
+            title="Booking.com"
+          >
+            <ExternalLink className="w-4 h-4" />
+          </a>
+        )}
+      </div>
     </div>
   );
 }
@@ -540,7 +571,23 @@ function DayTab({ day }: { day: DayItinerary }) {
 
               {/* Content */}
               <div className="flex-1 min-w-0">
-                <p className="font-semibold text-sm leading-snug">{act.name}</p>
+                <div className="flex items-center gap-1.5">
+                  <p className="font-semibold text-sm leading-snug">{act.name}</p>
+                  {(act.type === 'attraction' || act.type === 'meal') && (
+                    <MapLink name={act.name} city={day.city} />
+                  )}
+                  {act.booking_url && (
+                    <a
+                      href={act.booking_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-muted-foreground hover:text-foreground transition-colors"
+                      title="预订链接"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </a>
+                  )}
+                </div>
                 <p className="text-xs text-muted-foreground mt-0.5 flex flex-wrap gap-x-2 gap-y-0.5">
                   <span>{activityTypeLabel[act.type]}</span>
                   {act.price_adult > 0 && (
