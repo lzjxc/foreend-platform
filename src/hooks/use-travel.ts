@@ -95,6 +95,24 @@ export function useExportItinerary() {
   });
 }
 
+export function useExportItineraryPdf() {
+  return useMutation({
+    mutationFn: async (planId: string) => {
+      const response = await lifeAppClient.get(
+        `/api/v1/travel/plans/${planId}/itinerary.pdf`,
+        { responseType: 'blob' }
+      );
+      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `itinerary-${planId}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    },
+  });
+}
+
 export function usePatchPlan() {
   const qc = useQueryClient();
   return useMutation({

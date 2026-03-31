@@ -1,12 +1,13 @@
 import { useState, lazy, Suspense, Component, type ReactNode } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { ChevronLeft, Download, Loader2, Check, Circle, ExternalLink, MapPin, Printer, AlertTriangle } from 'lucide-react';
+import { ChevronLeft, Download, Loader2, Check, Circle, ExternalLink, MapPin, Printer, AlertTriangle, FileDown } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import {
   useTravelPlan,
   useExportTravelPlan,
   useExportItinerary,
+  useExportItineraryPdf,
   usePatchPlan,
   usePatchActivity,
   usePatchAccommodation,
@@ -141,6 +142,7 @@ export default function LifeTravelDetail() {
   const { data: plan, isLoading } = useTravelPlan(planId ?? '');
   const exportPlan = useExportTravelPlan();
   const exportItinerary = useExportItinerary();
+  const exportPdf = useExportItineraryPdf();
   const patchPlan = usePatchPlan();
   const [activeTab, setActiveTab] = useState(0);
 
@@ -273,6 +275,15 @@ export default function LifeTravelDetail() {
           >
             <Printer className="h-4 w-4 mr-1.5" />
             行程单
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={plan.status !== 'completed' || exportPdf.isPending}
+            onClick={() => planId && exportPdf.mutateAsync(planId).catch(() => toast.error('PDF导出失败'))}
+          >
+            <FileDown className="h-4 w-4 mr-1.5" />
+            PDF
           </Button>
           <Button
             variant="outline"
