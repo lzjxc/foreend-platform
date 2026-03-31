@@ -404,13 +404,17 @@ function OverviewTab({
                           disabled={patchActivity.isPending}
                         />
                       ) : act.booking_required ? (
-                        <span className="text-[10px] bg-red-100 text-red-700 rounded px-1.5 py-0.5 font-medium whitespace-nowrap">需预约</span>
-                      ) : (
-                        <ConfirmedToggle
-                          confirmed={false}
+                        <button
                           onClick={() => patchActivity.mutate({ id: act.id, data: { confirmed: true } })}
                           disabled={patchActivity.isPending}
-                        />
+                          className="text-[10px] bg-red-100 text-red-700 rounded px-1.5 py-0.5 font-medium whitespace-nowrap hover:bg-red-200 cursor-pointer"
+                        >需预约</button>
+                      ) : (
+                        <button
+                          onClick={() => patchActivity.mutate({ id: act.id, data: { confirmed: true } })}
+                          disabled={patchActivity.isPending}
+                          className="text-[10px] bg-gray-100 text-gray-500 rounded px-1.5 py-0.5 font-medium whitespace-nowrap hover:bg-gray-200 cursor-pointer"
+                        >可现场买</button>
                       )}
                     </td>
                     <td className="px-3 py-2.5">
