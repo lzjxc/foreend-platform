@@ -390,6 +390,7 @@ function OverviewTab({
                   <th className="px-3 py-2.5 text-left font-medium">城市</th>
                   <th className="px-3 py-2.5 text-right font-medium">票价</th>
                   <th className="px-3 py-2.5 text-center font-medium">链接</th>
+                  <th className="px-3 py-2.5 text-left font-medium">备注</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
@@ -432,6 +433,9 @@ function OverviewTab({
                         <a href={act.booking_url} target="_blank" rel="noopener noreferrer"
                           className="text-muted-foreground hover:text-foreground"><ExternalLink className="w-3.5 h-3.5" /></a>
                       )}
+                    </td>
+                    <td className="px-3 py-2.5 text-xs text-muted-foreground max-w-[200px]">
+                      {act.notes ?? ''}
                     </td>
                   </tr>
                 ))}
