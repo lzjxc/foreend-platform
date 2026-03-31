@@ -575,68 +575,81 @@ function DayTab({ day }: { day: DayItinerary }) {
         <p className="text-sm text-muted-foreground">暂无活动安排</p>
       ) : (
         <div className="space-y-2">
-          {day.activities.map((act) => (
-            <div
-              key={act.id}
-              className={`flex gap-3 rounded-r-lg border-l-4 px-4 py-3 ${activityBorderClass(act.type)}`}
-            >
-              {/* Confirmed toggle */}
-              <div className="pt-0.5">
-                <ConfirmedToggle
-                  confirmed={act.confirmed}
-                  bookedAt={act.booked_at}
-                  onClick={() =>
-                    patchActivity.mutate({
-                      id: act.id,
-                      data: { confirmed: !act.confirmed },
-                    })
-                  }
-                  disabled={patchActivity.isPending}
-                />
-              </div>
+          {day.activities.map((act) => {
+            // Only show booking status for paid items or transport
+            const needsBooking = act.price_adult > 0 || act.type === 'transport';
+            return (
+              <div
+                key={act.id}
+                className={`flex gap-3 rounded-r-lg border-l-4 px-4 py-3 ${activityBorderClass(act.type)}`}
+              >
+                {/* Confirmed toggle — only for paid/transport items */}
+                {needsBooking ? (
+                  <div className="pt-0.5">
+                    <ConfirmedToggle
+                      confirmed={act.confirmed}
+                      bookedAt={act.booked_at}
+                      onClick={() =>
+                        patchActivity.mutate({
+                          id: act.id,
+                          data: { confirmed: !act.confirmed },
+                        })
+                      }
+                      disabled={patchActivity.isPending}
+                    />
+                  </div>
+                ) : (
+                  <div className="w-5 shrink-0" />
+                )}
 
-              {/* Time */}
-              <span className="w-12 shrink-0 text-xs text-gray-500 pt-0.5">
-                {act.time}
-              </span>
+                {/* Time */}
+                <span className="w-12 shrink-0 text-xs text-gray-500 pt-0.5">
+                  {act.time}
+                </span>
 
-              {/* Content */}
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-1.5">
-                  <p className="font-semibold text-sm leading-snug">{act.name}</p>
-                  {(act.type === 'attraction' || act.type === 'meal') && (
-                    <MapLink name={act.name} city={day.city} />
-                  )}
-                  {act.booking_url && (
-                    <a
-                      href={act.booking_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-muted-foreground hover:text-foreground transition-colors"
-                      title="预订链接"
-                    >
-                      <ExternalLink className="w-3.5 h-3.5" />
-                    </a>
-                  )}
+                {/* Content */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <p className="font-semibold text-sm leading-snug">{act.name}</p>
+                    {(act.type === 'attraction' || act.type === 'meal') && (
+                      <MapLink name={act.name} city={day.city} />
+                    )}
+                    {act.booking_url && (
+                      <a
+                        href={act.booking_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-muted-foreground hover:text-foreground transition-colors"
+                        title="预订链接"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </a>
+                    )}
+                    {needsBooking && !act.confirmed && (
+                      <span className="text-[10px] bg-amber-100 text-amber-700 rounded px-1.5 py-0.5 font-medium">
+                        待预定
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-0.5 flex flex-wrap gap-x-2 gap-y-0.5">
+                    <span>{activityTypeLabel[act.type]}</span>
+                    {act.price_adult > 0 && (
+                      <span>£{act.price_adult}</span>
+                    )}
+                    {act.duration_min > 0 && (
+                      <span>{formatDuration(act.duration_min)}</span>
+                    )}
+                    {act.child_friendly_rating > 0 && (
+                      <ChildFriendlyStars rating={act.child_friendly_rating} />
+                    )}
+                    {act.notes && (
+                      <span className="text-gray-400">{act.notes}</span>
+                    )}
+                  </p>
                 </div>
-                <p className="text-xs text-muted-foreground mt-0.5 flex flex-wrap gap-x-2 gap-y-0.5">
-                  <span>{activityTypeLabel[act.type]}</span>
-                  {act.price_adult > 0 && (
-                    <span>£{act.price_adult}</span>
-                  )}
-                  {act.duration_min > 0 && (
-                    <span>{formatDuration(act.duration_min)}</span>
-                  )}
-                  {act.child_friendly_rating > 0 && (
-                    <ChildFriendlyStars rating={act.child_friendly_rating} />
-                  )}
-                  {act.notes && (
-                    <span className="text-gray-400">{act.notes}</span>
-                  )}
-                </p>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
