@@ -49,6 +49,8 @@ function mapBackendToFrontend(doc: BackendDocument): Document {
     issue_date: doc.issue_date,
     expiry_date: doc.expiry_date,
     issuing_authority: doc.issuing_authority,
+    front_image_url: doc.front_image_path,
+    back_image_url: doc.back_image_path,
     notes: doc.notes,
     created_at: doc.created_at,
     updated_at: doc.updated_at,

@@ -14,6 +14,7 @@ import {
   RefreshCw,
   X,
   ChevronDown,
+  Download,
 } from 'lucide-react';
 import { usePersons } from '@/hooks/use-persons';
 import {
@@ -234,6 +235,20 @@ function DocumentCard({ document, onEdit, onDelete }: DocumentCardProps) {
             </p>
           )}
 
+          {document.front_image_url && (
+            <p className="text-sm mt-1">
+              <a
+                href={`/file-api/api/v1/files/${document.front_image_url.replace('file-gateway://', '')}/download`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+              >
+                <Download className="h-3 w-3" />
+                扫描件
+              </a>
+            </p>
+          )}
+
           {document.notes && (
             <p className="text-sm text-muted-foreground mt-2">
               备注: {document.notes}
@@ -349,6 +364,8 @@ export default function Documents() {
     issue_date: doc.issue_date as string | undefined,
     expiry_date: doc.expiry_date as string | undefined,
     issuing_authority: doc.issuing_authority as string | undefined,
+    front_image_url: doc.front_image_path as string | undefined,
+    back_image_url: doc.back_image_path as string | undefined,
     notes: doc.notes as string | undefined,
     created_at: doc.created_at as string,
     updated_at: doc.updated_at as string,

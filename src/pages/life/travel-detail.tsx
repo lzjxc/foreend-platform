@@ -1,4 +1,4 @@
-import { useState, lazy, Suspense } from 'react';
+import { useState, lazy, Suspense, Component, type ReactNode } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { ChevronLeft, Download, Loader2, Check, Circle, ExternalLink, MapPin, Printer, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
@@ -17,6 +17,17 @@ import type { Activity, TravelPlan, DayItinerary, Accommodation } from '@/types/
 import WeatherCard from '@/components/travel/weather-card';
 
 const DayMap = lazy(() => import('@/components/travel/day-map'));
+
+class MapErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
+  state = { hasError: false };
+  static getDerivedStateFromError() { return { hasError: true }; }
+  render() {
+    if (this.state.hasError) {
+      return <div className="rounded-lg border bg-muted/30 p-4 text-sm text-muted-foreground text-center">地图加载失败</div>;
+    }
+    return this.props.children;
+  }
+}
 
 // ── Helpers ───────────────────────────────────────────────────
 
@@ -712,9 +723,11 @@ function DayTab({ day }: { day: DayItinerary }) {
       {weather && <WeatherCard weather={weather} />}
 
       {/* Day map */}
-      <Suspense fallback={<div className="h-[350px] rounded-lg border bg-muted/30 animate-pulse" />}>
-        <DayMap activities={day.activities} city={day.city} />
-      </Suspense>
+      <MapErrorBoundary>
+        <Suspense fallback={<div className="h-[350px] rounded-lg border bg-muted/30 animate-pulse" />}>
+          <DayMap activities={day.activities} city={day.city} />
+        </Suspense>
+      </MapErrorBoundary>
 
       {day.activities.length === 0 ? (
         <p className="text-sm text-muted-foreground">暂无活动安排</p>
