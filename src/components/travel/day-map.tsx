@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Tooltip, Polyline, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import type { Activity } from '@/types/life-app';
@@ -81,12 +81,9 @@ export default function DayMap({ activities }: DayMapProps) {
             position={[act.latitude!, act.longitude!]}
             icon={numberIcon(idx + 1)}
           >
-            <Popup>
-              <div className="text-xs">
-                <strong>{act.time} {act.name}</strong>
-                {act.address && <p className="mt-0.5 text-gray-500">{act.address}</p>}
-              </div>
-            </Popup>
+            <Tooltip permanent direction="right" offset={[12, 0]} className="marker-tooltip">
+              <span style={{ fontSize: 11, fontWeight: 500 }}>{act.name}</span>
+            </Tooltip>
           </Marker>
         ))}
 

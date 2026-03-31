@@ -731,11 +731,21 @@ function DayTab({ day }: { day: DayItinerary }) {
 
       {day.activities.length === 0 ? (
         <p className="text-sm text-muted-foreground">暂无活动安排</p>
-      ) : (
+      ) : (() => {
+        // Build a map marker index: activity id → marker number (1-based)
+        const markerMap = new Map<string, number>();
+        let markerIdx = 1;
+        for (const a of day.activities) {
+          if (a.latitude != null && a.longitude != null && a.type !== 'transport') {
+            markerMap.set(a.id, markerIdx++);
+          }
+        }
+        return (
         <div className="space-y-2">
           {day.activities.map((act) => {
             // Only show booking status for paid attractions/activities (not transport — tracked in overview)
             const needsBooking = act.price_adult > 0 && act.type !== 'transport';
+            const mapNum = markerMap.get(act.id);
             return (
               <div
                 key={act.id}
@@ -768,6 +778,11 @@ function DayTab({ day }: { day: DayItinerary }) {
                 {/* Content */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5">
+                    {mapNum && (
+                      <span className="shrink-0 w-5 h-5 rounded-full bg-blue-500 text-white text-[10px] font-bold flex items-center justify-center">
+                        {mapNum}
+                      </span>
+                    )}
                     <p className="font-semibold text-sm leading-snug">{act.name}</p>
                     {(act.type === 'attraction' || act.type === 'meal') && (
                       <MapLink name={act.name} city={day.city} />
@@ -814,7 +829,8 @@ function DayTab({ day }: { day: DayItinerary }) {
             );
           })}
         </div>
-      )}
+        );
+      })()}
     </div>
   );
 }
